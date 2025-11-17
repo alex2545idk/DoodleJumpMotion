@@ -1,138 +1,145 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, StyleSheet, View } from "react-native";
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
   SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
 } from "react-native-reanimated";
 import { Doodle } from "../components/Doodle";
 import { Platform as PlatformComponent } from "../components/Platform";
 import { Score } from "../components/Score";
 import {
-  width,
-  height,
   DOODLE_SIZE,
-  PLATFORM_WIDTH,
-  PLATFORM_HEIGHT,
-  MOVE_SPEED,
   GRAVITY,
+  height,
   JUMP_HEIGHT,
+  MOVE_SPEED,
+  PLATFORM_HEIGHT,
+  PLATFORM_WIDTH,
+  width,
 } from "../constants/config";
 
-interface PlatformType {
-  x: SharedValue<number>;
-  y: SharedValue<number>;
-}
+// --- TYPY I POMOCNICZE FUNKCJE ---
 
-export const GameScreen = () => {
-  const PLATFORM_COUNT = 20; // Увеличили количество платформ
+type PlatformData = {
+  x: number;
+  y: number;
+};
 
-  // Позиция Doodle (top координаты, 0 = верх экрана)
+const PLATFORM_COUNT = 20;
+const MAX_DISTANCE = 90;
+const MIN_DISTANCE = 50;
+
+// losowy X w bezpiecznym zakresie
+const getRandomPlatformX = () =>
+  Math.random() * (width - PLATFORM_WIDTH - 40) + 20;
+
+// czy nowa platforma nachodzi na jakąś inną na podobnej wysokości
+const isOverlappingPlatform = (
+  newX: number,
+  newY: number,
+  platforms: PlatformData[]
+) => {
+  return platforms.some((p) => {
+    const closeInY = Math.abs(p.y - newY) < PLATFORM_HEIGHT; // podobna wysokość
+    const overlapInX =
+      newX < p.x + PLATFORM_WIDTH && newX + PLATFORM_WIDTH > p.x;
+    return closeInY && overlapInX;
+  });
+};
+
+// generowanie początkowych platform – bez nachodzenia
+const createInitialPlatforms = (): PlatformData[] => {
+  const positions: PlatformData[] = [];
+  let currentY = height - 100; // pierwsza platforma przy dole ekranu
+
+  for (let i = 0; i < PLATFORM_COUNT; i++) {
+    const y =
+      i === 0
+        ? currentY
+        : (currentY -=
+            Math.random() * (MAX_DISTANCE - MIN_DISTANCE) + MIN_DISTANCE);
+
+    let x = getRandomPlatformX();
+    let attempts = 0;
+
+    while (attempts < 50 && isOverlappingPlatform(x, y, positions)) {
+      x = getRandomPlatformX();
+      attempts++;
+    }
+
+    positions.push({ x, y });
+  }
+
+  return positions;
+};
+
+// --- KOMPONENT POJEDYNCZEJ PLATFORMY (z animacją) ---
+
+type PlatformAnimatedProps = {
+  index: number;
+  platforms: SharedValue<PlatformData[]>;
+  cameraOffset: SharedValue<number>;
+};
+
+const PlatformAnimated: React.FC<PlatformAnimatedProps> = ({
+  index,
+  platforms,
+  cameraOffset,
+}) => {
+  const style = useAnimatedStyle(() => {
+    const p = platforms.value[index];
+    if (!p) {
+      return {
+        position: "absolute",
+        left: 0,
+        top: height + 100,
+        width: PLATFORM_WIDTH,
+        height: PLATFORM_HEIGHT,
+      };
+    }
+
+    return {
+      position: "absolute",
+      left: p.x,
+      top: p.y + cameraOffset.value,
+      width: PLATFORM_WIDTH,
+      height: PLATFORM_HEIGHT,
+    };
+  });
+
+  return (
+    <Animated.View style={style}>
+      <PlatformComponent
+        x={0}
+        y={0}
+        width={PLATFORM_WIDTH}
+        height={PLATFORM_HEIGHT}
+      />
+    </Animated.View>
+  );
+};
+
+// --- GŁÓWNY EKRAN GRY ---
+
+export const GameScreen: React.FC = () => {
+  // pozycja Doodle
   const x = useSharedValue(width / 2 - DOODLE_SIZE / 2);
-  const y = useSharedValue(height - 200); // Начинаем внизу
-  const velocityY = useSharedValue(0); // Скорость по Y (положительная = вниз, отрицательная = вверх)
+  const y = useSharedValue(height - 200);
+  const velocityY = useSharedValue(0);
+
+  const cameraOffset = useSharedValue(0);
+  const platforms = useSharedValue<PlatformData[]>(createInitialPlatforms());
 
   const [score, setScore] = useState(0);
+
   const moveDirection = useRef<"left" | "right" | null>(null);
   const started = useRef(false);
   const gameOver = useRef(false);
-  const lastPlatformHit = useRef<number | null>(null);
-  const scrollOffset = useRef(0); // Общий сдвиг камеры
-  const lastJumpTime = useRef(0); // Время последнего прыжка
-  const cameraOffset = useSharedValue(0); // Плавное смещение камеры
+  const scrollOffset = useRef(0);
+  const lastJumpTime = useRef(0);
 
-  // Создаем начальные позиции платформ (обычный массив)
-  const platformPositions = useMemo(() => {
-    const positions: { x: number; y: number }[] = [];
-    const MAX_DISTANCE = 90; // Максимальное расстояние между платформами
-    const MIN_DISTANCE = 50; // Минимальное расстояние
-
-    let currentY = height - 100; // Первая платформа внизу
-
-    for (let i = 0; i < PLATFORM_COUNT; i++) {
-      const platformX = Math.random() * (width - PLATFORM_WIDTH - 40) + 20;
-
-      positions.push({
-        x: platformX,
-        y: currentY,
-      });
-
-      currentY -= Math.random() * (MAX_DISTANCE - MIN_DISTANCE) + MIN_DISTANCE; // Поднимаемся вверх
-    }
-
-    return positions;
-  }, []);
-
-  // Создаем shared values для каждой платформы
-  const platform0X = useSharedValue(platformPositions[0].x);
-  const platform0Y = useSharedValue(platformPositions[0].y);
-  const platform1X = useSharedValue(platformPositions[1].x);
-  const platform1Y = useSharedValue(platformPositions[1].y);
-  const platform2X = useSharedValue(platformPositions[2].x);
-  const platform2Y = useSharedValue(platformPositions[2].y);
-  const platform3X = useSharedValue(platformPositions[3].x);
-  const platform3Y = useSharedValue(platformPositions[3].y);
-  const platform4X = useSharedValue(platformPositions[4].x);
-  const platform4Y = useSharedValue(platformPositions[4].y);
-  const platform5X = useSharedValue(platformPositions[5].x);
-  const platform5Y = useSharedValue(platformPositions[5].y);
-  const platform6X = useSharedValue(platformPositions[6].x);
-  const platform6Y = useSharedValue(platformPositions[6].y);
-  const platform7X = useSharedValue(platformPositions[7].x);
-  const platform7Y = useSharedValue(platformPositions[7].y);
-  const platform8X = useSharedValue(platformPositions[8].x);
-  const platform8Y = useSharedValue(platformPositions[8].y);
-  const platform9X = useSharedValue(platformPositions[9].x);
-  const platform9Y = useSharedValue(platformPositions[9].y);
-  const platform10X = useSharedValue(platformPositions[10].x);
-  const platform10Y = useSharedValue(platformPositions[10].y);
-  const platform11X = useSharedValue(platformPositions[11].x);
-  const platform11Y = useSharedValue(platformPositions[11].y);
-  const platform12X = useSharedValue(platformPositions[12].x);
-  const platform12Y = useSharedValue(platformPositions[12].y);
-  const platform13X = useSharedValue(platformPositions[13].x);
-  const platform13Y = useSharedValue(platformPositions[13].y);
-  const platform14X = useSharedValue(platformPositions[14].x);
-  const platform14Y = useSharedValue(platformPositions[14].y);
-  const platform15X = useSharedValue(platformPositions[15].x);
-  const platform15Y = useSharedValue(platformPositions[15].y);
-  const platform16X = useSharedValue(platformPositions[16].x);
-  const platform16Y = useSharedValue(platformPositions[16].y);
-  const platform17X = useSharedValue(platformPositions[17].x);
-  const platform17Y = useSharedValue(platformPositions[17].y);
-  const platform18X = useSharedValue(platformPositions[18].x);
-  const platform18Y = useSharedValue(platformPositions[18].y);
-  const platform19X = useSharedValue(platformPositions[19].x);
-  const platform19Y = useSharedValue(platformPositions[19].y);
-
-  // Собираем все платформы в массив
-  const platforms = useMemo<PlatformType[]>(
-    () => [
-      { x: platform0X, y: platform0Y },
-      { x: platform1X, y: platform1Y },
-      { x: platform2X, y: platform2Y },
-      { x: platform3X, y: platform3Y },
-      { x: platform4X, y: platform4Y },
-      { x: platform5X, y: platform5Y },
-      { x: platform6X, y: platform6Y },
-      { x: platform7X, y: platform7Y },
-      { x: platform8X, y: platform8Y },
-      { x: platform9X, y: platform9Y },
-      { x: platform10X, y: platform10Y },
-      { x: platform11X, y: platform11Y },
-      { x: platform12X, y: platform12Y },
-      { x: platform13X, y: platform13Y },
-      { x: platform14X, y: platform14Y },
-      { x: platform15X, y: platform15Y },
-      { x: platform16X, y: platform16Y },
-      { x: platform17X, y: platform17Y },
-      { x: platform18X, y: platform18Y },
-      { x: platform19X, y: platform19Y },
-    ],
-    []
-  );
-
-  // Анимации Doodle (используем top вместо bottom) с учётом смещения камеры
+  // styl Doodle z uwzględnieniem kamery
   const doodleStyle = useAnimatedStyle(() => ({
     left: x.value,
     top: y.value + cameraOffset.value,
@@ -141,147 +148,138 @@ export const GameScreen = () => {
     position: "absolute",
   }));
 
-  // Анимации платформ (используем top вместо bottom) с учётом смещения камеры
-  const platformStyles = platforms.map((p) =>
-    useAnimatedStyle(() => ({
-      left: p.x.value,
-      top: p.y.value + cameraOffset.value,
-      width: PLATFORM_WIDTH,
-      height: PLATFORM_HEIGHT,
-      position: "absolute",
-    }))
-  );
-
-  // Функция для создания новой платформы наверху
-  const createNewPlatform = (platform: PlatformType) => {
-    // Находим самую высокую (минимальную Y) платформу
-    const highestY = Math.min(...platforms.map((p) => p.y.value));
-
-    // Создаем новую платформу выше на безопасном расстоянии
-    const verticalDistance = Math.random() * 40 + 60; // 60-100 пикселей
+  // tworzy nową platformę na górze (bez nachodzenia)
+  const respawnPlatform = (index: number) => {
+    const current = platforms.value;
+    const highestY = Math.min(...current.map((p) => p.y));
+    const verticalDistance = Math.random() * 40 + 60; // 60–100 pikseli
     const newY = highestY - verticalDistance;
 
-    // Генерируем X позицию (не слишком близко к краям)
-    const newX = Math.random() * (width - PLATFORM_WIDTH - 60) + 30;
+    let newX = getRandomPlatformX();
+    let attempts = 0;
+    while (attempts < 50 && isOverlappingPlatform(newX, newY, current)) {
+      newX = getRandomPlatformX();
+      attempts++;
+    }
 
-    platform.y.value = newY;
-    platform.x.value = newX;
+    const updated = [...current];
+    updated[index] = { x: newX, y: newY };
+    platforms.value = updated;
   };
 
-  // Игровой цикл
+  // główna pętla gry
   useEffect(() => {
     if (gameOver.current) return;
 
     const interval = setInterval(() => {
-      const currentTime = Date.now();
+      const now = Date.now();
 
-      // Движение Doodle по X
+      // sterowanie poziome
       if (moveDirection.current === "left") {
         x.value = Math.max(0, x.value - MOVE_SPEED);
       } else if (moveDirection.current === "right") {
         x.value = Math.min(width - DOODLE_SIZE, x.value + MOVE_SPEED);
       }
 
-      // Применяем гравитацию (увеличиваем скорость падения)
+      // grawitacja
       velocityY.value += GRAVITY;
-
-      // Двигаем персонажа (положительная velocityY = вниз)
       y.value += velocityY.value;
 
-      // Плавная прокрутка камеры когда персонаж поднимается высоко
+      // kamera (scroll w górę)
       const SCROLL_THRESHOLD = height * 0.5;
       const targetOffset = Math.max(0, SCROLL_THRESHOLD - y.value);
-
-      // Плавно интерполируем смещение камеры (0.15 = скорость интерполяции)
       cameraOffset.value += (targetOffset - cameraOffset.value) * 0.15;
 
-      // Если камера сместилась, проверяем платформы
+      // przesuwanie i respawn platform
       if (cameraOffset.value > 5) {
-        platforms.forEach((p) => {
-          // Реальная позиция платформы с учётом смещения
-          const realY = p.y.value + cameraOffset.value;
+        const current = platforms.value;
+        const updated = [...current];
 
-          // Если платформа ушла за нижнюю границу
+        for (let i = 0; i < updated.length; i++) {
+          const realY = updated[i].y + cameraOffset.value;
+
           if (realY > height + PLATFORM_HEIGHT + 100) {
-            createNewPlatform(p);
-            // Корректируем позицию новой платформы с учётом текущего смещения
-            p.y.value -= cameraOffset.value;
-          }
-        });
+            // ta platforma jest już daleko pod ekranem -> przerzucamy ją na górę
+            const highestY = Math.min(...updated.map((p) => p.y));
+            const verticalDistance = Math.random() * 40 + 60;
+            const newY = highestY - verticalDistance;
 
-        // Обновляем счет на основе смещения камеры
+            let newX = getRandomPlatformX();
+            let attempts = 0;
+            while (
+              attempts < 50 &&
+              isOverlappingPlatform(newX, newY, updated.filter((_, idx) => idx !== i))
+            ) {
+              newX = getRandomPlatformX();
+              attempts++;
+            }
+
+            updated[i] = { x: newX, y: newY };
+          }
+        }
+
+        platforms.value = updated;
         scrollOffset.current = cameraOffset.value;
         setScore(Math.floor(scrollOffset.current / 10));
       }
 
-      // Проверка столкновений - только если падаем И прошло минимум 200ms с последнего прыжка
-      const MIN_JUMP_INTERVAL = 200; // Минимальное время между прыжками в миллисекундах
-      const canJumpNow = currentTime - lastJumpTime.current > MIN_JUMP_INTERVAL;
+      // odbijanie od platform – tylko gdy spadamy + mały cooldown
+      const MIN_JUMP_INTERVAL = 200;
+      const canJumpNow = now - lastJumpTime.current > MIN_JUMP_INTERVAL;
 
       if (velocityY.value > 0 && canJumpNow) {
         const doodleBottom = y.value + DOODLE_SIZE;
+        const current = platforms.value;
 
-        // Ищем ближайшую платформу под персонажем
-        let closestPlatformIndex: number = -1;
-        let closestDistance: number = 999;
+        let closestIndex = -1;
+        let closestDistance = Number.POSITIVE_INFINITY;
 
-        platforms.forEach((p, index) => {
-          const platformTop = p.y.value;
+        for (let i = 0; i < current.length; i++) {
+          const p = current[i];
+          const platformTop = p.y;
 
-          // Проверяем, что платформа ниже персонажа
-          if (platformTop < doodleBottom - 5) return;
+          // platforma musi być pod spodem
+          if (platformTop < doodleBottom - 5) continue;
 
-          // Проверяем горизонтальное выравнивание
+          // ODBIJANIE OD CAŁEJ SZEROKOŚCI PLATFORMY (z małym marginesem)
           const isHorizontallyAligned =
-            x.value + DOODLE_SIZE > p.x.value + 15 &&
-            x.value < p.x.value + PLATFORM_WIDTH - 15;
+            x.value + DOODLE_SIZE > p.x - 5 &&
+            x.value < p.x + PLATFORM_WIDTH + 5;
 
-          if (!isHorizontallyAligned) return;
+          if (!isHorizontallyAligned) continue;
 
           const distance = platformTop - doodleBottom;
-
-          // Обновляем ближайшую платформу если эта ближе
           if (distance >= 0 && distance < 20 && distance < closestDistance) {
-            closestPlatformIndex = index;
             closestDistance = distance;
+            closestIndex = i;
           }
-        });
+        }
 
-        // Если нашли подходящую платформу - прыгаем
-        if (closestPlatformIndex >= 0) {
-          const closestPlatform = platforms[closestPlatformIndex];
-          lastJumpTime.current = currentTime;
-          lastPlatformHit.current = closestPlatformIndex;
-          y.value = closestPlatform.y.value - DOODLE_SIZE;
+        if (closestIndex >= 0) {
+          const hitPlatform = platforms.value[closestIndex];
+          lastJumpTime.current = now;
+          y.value = hitPlatform.y - DOODLE_SIZE;
           velocityY.value = -JUMP_HEIGHT;
         }
       }
 
-      // Сбрасываем lastPlatformHit когда летим вверх
-      if (velocityY.value < -5) {
-        lastPlatformHit.current = null;
-      }
-
-      // Game Over - если упали за нижнюю границу
+      // Game Over – wypadnięcie na dół
       if (y.value > height + DOODLE_SIZE) {
         gameOver.current = true;
         clearInterval(interval);
         Alert.alert("Game Over", `Your score: ${score}`, [
-          {
-            text: "OK",
-            onPress: () => {},
-          },
+          { text: "OK", onPress: () => {} },
         ]);
       }
 
-      // Старт игры
+      // "start" gry, jeśli chcesz coś z tym robić
       if (!started.current && y.value < height - 150) {
         started.current = true;
       }
     }, 16);
 
     return () => clearInterval(interval);
-  }, [platforms, score]);
+  }, [score]);
 
   return (
     <View style={styles.container}>
@@ -293,17 +291,16 @@ export const GameScreen = () => {
         </View>
       </Animated.View>
 
-      {platforms.map((_, i) => (
-        <Animated.View key={i} style={platformStyles[i]}>
-          <PlatformComponent
-            x={0}
-            y={0}
-            width={PLATFORM_WIDTH}
-            height={PLATFORM_HEIGHT}
-          />
-        </Animated.View>
+      {Array.from({ length: PLATFORM_COUNT }).map((_, i) => (
+        <PlatformAnimated
+          key={i}
+          index={i}
+          platforms={platforms}
+          cameraOffset={cameraOffset}
+        />
       ))}
 
+      {/* Sterowanie – lewa/prawa połowa ekranu */}
       <View
         style={styles.leftControl}
         onTouchStart={() => (moveDirection.current = "left")}
