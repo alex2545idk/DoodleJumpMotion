@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import { View, StyleSheet, Alert, ImageBackground} from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,6 +18,8 @@ import {
   GRAVITY,
   JUMP_HEIGHT,
 } from "../constants/config";
+
+const tlo = require("../../assets/images/tlo.png");
 
 interface PlatformType {
   x: SharedValue<number>;
@@ -284,7 +286,7 @@ export const GameScreen = () => {
   }, [platforms, score]);
 
   return (
-    <View style={styles.container}>
+    <ImageBackground source={tlo} style={styles.container}>
       <Score y={score} />
 
       <Animated.View style={doodleStyle}>
@@ -314,14 +316,13 @@ export const GameScreen = () => {
         onTouchStart={() => (moveDirection.current = "right")}
         onTouchEnd={() => (moveDirection.current = null)}
       />
-    </View>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#87CEEB",
     position: "relative",
   },
   doodleInner: {

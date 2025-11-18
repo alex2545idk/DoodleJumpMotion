@@ -1,6 +1,9 @@
 // src/components/Platform.tsx
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { Image, StyleSheet } from "react-native";
+
+// 🔹 import trampoliny (dostosuj ścieżkę jeśli trzeba)
+const trampolina = require("../../assets/images/trampolina.png");
 
 interface PlatformProps {
   x: number;
@@ -11,13 +14,19 @@ interface PlatformProps {
 
 export const Platform: React.FC<PlatformProps> = ({ x, y, width, height }) => {
   return (
-    <View style={[styles.platform, { left: x, bottom: y, width, height }]} />
+    <Image
+      source={trampolina}
+      style={[
+        styles.platform,
+        { left: x, bottom: y, width, height }
+      ]}
+      resizeMode="stretch"
+    />
   );
 };
 
 const styles = StyleSheet.create({
   platform: {
     position: "absolute",
-    backgroundColor: "brown",
   },
 });
