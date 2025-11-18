@@ -19,7 +19,7 @@ import {
   width,
 } from "../constants/config";
 
-// --- TYPY I POMOCNICZE FUNKCJE ---
+// ====== TYPY I STAŁE ======
 
 type PlatformData = {
   x: number;
@@ -30,28 +30,39 @@ const PLATFORM_COUNT = 20;
 const MAX_DISTANCE = 90;
 const MIN_DISTANCE = 50;
 
-// losowy X w bezpiecznym zakresie
-const getRandomPlatformX = () =>
-  Math.random() * (width - PLATFORM_WIDTH - 40) + 20;
+// ====== POMOCNICZE FUNKCJE ======
 
-// czy nowa platforma nachodzi na jakąś inną na podobnej wysokości
-const isOverlappingPlatform = (
+// losowy X w całej szerokości ekranu (z marginesem)
+const getRandomPlatformX = () => {
+  const margin = 20;
+  return margin + Math.random() * (width - PLATFORM_WIDTH - margin * 2);
+};
+
+// czy nowa platforma jest zbyt blisko innych
+const isTooCloseToOtherPlatforms = (
   newX: number,
   newY: number,
   platforms: PlatformData[]
 ) => {
+  const minVerticalGap = PLATFORM_HEIGHT * 0.8; // minimalny odstęp w pionie
+  const minHorizontalGap = PLATFORM_WIDTH * 0.4; // minimalny odstęp w poziomie (między środkami)
+
   return platforms.some((p) => {
-    const closeInY = Math.abs(p.y - newY) < PLATFORM_HEIGHT; // podobna wysokość
-    const overlapInX =
-      newX < p.x + PLATFORM_WIDTH && newX + PLATFORM_WIDTH > p.x;
-    return closeInY && overlapInX;
+    const dy = Math.abs(p.y - newY);
+    if (dy > minVerticalGap) return false;
+
+    const centerNew = newX + PLATFORM_WIDTH / 2;
+    const centerOld = p.x + PLATFORM_WIDTH / 2;
+    const dx = Math.abs(centerNew - centerOld);
+
+    return dx < minHorizontalGap; // za blisko siebie
   });
 };
 
-// generowanie początkowych platform – bez nachodzenia
+// generowanie początkowych platform – naturalny rozkład jak w Doodle Jump
 const createInitialPlatforms = (): PlatformData[] => {
   const positions: PlatformData[] = [];
-  let currentY = height - 100; // pierwsza platforma przy dole ekranu
+  let currentY = height - 100; // pierwsza platforma przy dole
 
   for (let i = 0; i < PLATFORM_COUNT; i++) {
     const y =
@@ -63,7 +74,7 @@ const createInitialPlatforms = (): PlatformData[] => {
     let x = getRandomPlatformX();
     let attempts = 0;
 
-    while (attempts < 50 && isOverlappingPlatform(x, y, positions)) {
+    while (attempts < 50 && isTooCloseToOtherPlatforms(x, y, positions)) {
       x = getRandomPlatformX();
       attempts++;
     }
@@ -74,7 +85,31 @@ const createInitialPlatforms = (): PlatformData[] => {
   return positions;
 };
 
-// --- KOMPONENT POJEDYNCZEJ PLATFORMY (z animacją) ---
+// spawn nowej platformy powyżej najwyższej – też z pilnowaniem odstępów
+const spawnPlatformAbove = (
+  current: PlatformData[],
+  excludeIndex?: number
+): PlatformData => {
+  const filtered =
+    typeof excludeIndex === "number"
+      ? current.filter((_, idx) => idx !== excludeIndex)
+      : current;
+
+  const highestY = Math.min(...filtered.map((p) => p.y));
+  const verticalDistance = Math.random() * 40 + 60; // 60–100 px
+  const newY = highestY - verticalDistance;
+
+  let x = getRandomPlatformX();
+  let attempts = 0;
+  while (attempts < 50 && isTooCloseToOtherPlatforms(x, newY, filtered)) {
+    x = getRandomPlatformX();
+    attempts++;
+  }
+
+  return { x, y: newY };
+};
+
+// ====== KOMPONENT ANIMOWANEJ PLATFORMY ======
 
 type PlatformAnimatedProps = {
   index: number;
@@ -120,14 +155,15 @@ const PlatformAnimated: React.FC<PlatformAnimatedProps> = ({
   );
 };
 
-// --- GŁÓWNY EKRAN GRY ---
+// ====== GŁÓWNY EKRAN GRY ======
 
 export const GameScreen: React.FC = () => {
-  // pozycja Doodle
+  // Doodle
   const x = useSharedValue(width / 2 - DOODLE_SIZE / 2);
   const y = useSharedValue(height - 200);
   const velocityY = useSharedValue(0);
 
+  // kamera & platformy
   const cameraOffset = useSharedValue(0);
   const platforms = useSharedValue<PlatformData[]>(createInitialPlatforms());
 
@@ -139,7 +175,7 @@ export const GameScreen: React.FC = () => {
   const scrollOffset = useRef(0);
   const lastJumpTime = useRef(0);
 
-  // styl Doodle z uwzględnieniem kamery
+  // styl Doodle
   const doodleStyle = useAnimatedStyle(() => ({
     left: x.value,
     top: y.value + cameraOffset.value,
@@ -147,25 +183,6 @@ export const GameScreen: React.FC = () => {
     height: DOODLE_SIZE,
     position: "absolute",
   }));
-
-  // tworzy nową platformę na górze (bez nachodzenia)
-  const respawnPlatform = (index: number) => {
-    const current = platforms.value;
-    const highestY = Math.min(...current.map((p) => p.y));
-    const verticalDistance = Math.random() * 40 + 60; // 60–100 pikseli
-    const newY = highestY - verticalDistance;
-
-    let newX = getRandomPlatformX();
-    let attempts = 0;
-    while (attempts < 50 && isOverlappingPlatform(newX, newY, current)) {
-      newX = getRandomPlatformX();
-      attempts++;
-    }
-
-    const updated = [...current];
-    updated[index] = { x: newX, y: newY };
-    platforms.value = updated;
-  };
 
   // główna pętla gry
   useEffect(() => {
@@ -190,7 +207,7 @@ export const GameScreen: React.FC = () => {
       const targetOffset = Math.max(0, SCROLL_THRESHOLD - y.value);
       cameraOffset.value += (targetOffset - cameraOffset.value) * 0.15;
 
-      // przesuwanie i respawn platform
+      // przesuwanie / respawn platform
       if (cameraOffset.value > 5) {
         const current = platforms.value;
         const updated = [...current];
@@ -199,22 +216,8 @@ export const GameScreen: React.FC = () => {
           const realY = updated[i].y + cameraOffset.value;
 
           if (realY > height + PLATFORM_HEIGHT + 100) {
-            // ta platforma jest już daleko pod ekranem -> przerzucamy ją na górę
-            const highestY = Math.min(...updated.map((p) => p.y));
-            const verticalDistance = Math.random() * 40 + 60;
-            const newY = highestY - verticalDistance;
-
-            let newX = getRandomPlatformX();
-            let attempts = 0;
-            while (
-              attempts < 50 &&
-              isOverlappingPlatform(newX, newY, updated.filter((_, idx) => idx !== i))
-            ) {
-              newX = getRandomPlatformX();
-              attempts++;
-            }
-
-            updated[i] = { x: newX, y: newY };
+            // ta platforma jest daleko poniżej – respawn nad najwyższą
+            updated[i] = spawnPlatformAbove(updated, i);
           }
         }
 
@@ -223,7 +226,7 @@ export const GameScreen: React.FC = () => {
         setScore(Math.floor(scrollOffset.current / 10));
       }
 
-      // odbijanie od platform – tylko gdy spadamy + mały cooldown
+      // odbijanie od platform – tylko przy spadaniu + cooldown
       const MIN_JUMP_INTERVAL = 200;
       const canJumpNow = now - lastJumpTime.current > MIN_JUMP_INTERVAL;
 
@@ -272,7 +275,6 @@ export const GameScreen: React.FC = () => {
         ]);
       }
 
-      // "start" gry, jeśli chcesz coś z tym robić
       if (!started.current && y.value < height - 150) {
         started.current = true;
       }
@@ -300,7 +302,7 @@ export const GameScreen: React.FC = () => {
         />
       ))}
 
-      {/* Sterowanie – lewa/prawa połowa ekranu */}
+      {/* Sterowanie dotykiem – na laptopie możesz później dodać klawiaturę */}
       <View
         style={styles.leftControl}
         onTouchStart={() => (moveDirection.current = "left")}
