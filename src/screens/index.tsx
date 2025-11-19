@@ -2,18 +2,19 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Image,
-    SafeAreaView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 
 export default function MainMenuScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
       <View style={styles.container}>
         {/* Tytuł */}
         <Image
@@ -24,7 +25,7 @@ export default function MainMenuScreen() {
 
         {/* Przycisk PLAY */}
         <TouchableOpacity
-          onPress={() => router.push("../screens/GameScreen")}
+          onPress={() => router.push("../GameScreen")}
           activeOpacity={0.8}
         >
           <Image
@@ -47,7 +48,7 @@ export default function MainMenuScreen() {
 
           <View style={styles.bottomButtons}>
             <TouchableOpacity
-              onPress={() => router.push("../screens/Scores")}
+              onPress={() => router.push("../Scores")}
               activeOpacity={0.8}
             >
               <Image
@@ -58,7 +59,7 @@ export default function MainMenuScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push("../screens/Options")}
+              onPress={() => router.push("../Options")}
               activeOpacity={0.8}
             >
               <Image

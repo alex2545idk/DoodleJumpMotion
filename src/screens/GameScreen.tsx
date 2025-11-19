@@ -1,3 +1,4 @@
+import { Difficulty, useGameSettings } from "@/src/context/GameSettingsContext";
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import Animated, {
@@ -20,8 +21,6 @@ import {
 } from "../constants/config";
 
 // ====== TYPY I KONFIG ======
-
-export type Difficulty = "easy" | "normal" | "hard";
 
 type PlatformData = {
   x: number;
@@ -56,7 +55,7 @@ const difficultySettings: Record<Difficulty, DifficultyConfig> = {
     jumpMultiplier: 1.05,
     moveMultiplier: 0.9,
   },
-  normal: {
+  medium: {
     platformCount: 20,
     maxDistance: 90,
     minDistance: 50,
@@ -149,12 +148,11 @@ const PlatformAnimated: React.FC<PlatformAnimatedProps> = ({
 
 // ====== GŁÓWNY EKRAN GRY Z TRUDNOŚCIĄ ======
 
-type GameScreenProps = {
-  difficulty?: Difficulty;
-};
+export const GameScreen: React.FC = () => {
+  const { difficulty } = useGameSettings();
 
-export const GameScreen: React.FC<GameScreenProps> = ({ difficulty }) => {
-  const safeDifficulty: Difficulty = difficulty ?? "normal";
+  // jeśli z jakiegoś powodu context zwróci undefined, użyjemy "medium"
+  const safeDifficulty: Difficulty = difficulty ?? "medium";
 
   const config: DifficultyConfig =
     difficultySettings[safeDifficulty] ?? DEFAULT_CONFIG;
