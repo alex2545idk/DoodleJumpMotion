@@ -1,14 +1,8 @@
 // app/(tabs)/index.tsx
 import { useRouter } from "expo-router";
 import React from "react";
-import {
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 
 export default function MainMenuScreen() {
   const router = useRouter();
@@ -25,7 +19,7 @@ export default function MainMenuScreen() {
 
         {/* Przycisk PLAY */}
         <TouchableOpacity
-          onPress={() => router.push("../GameScreen")}
+          onPress={() => router.push("/GameScreen")}
           activeOpacity={0.8}
         >
           <Image
@@ -35,7 +29,7 @@ export default function MainMenuScreen() {
           />
         </TouchableOpacity>
 
-        {/* Środek ekranu – możesz tu dodać np. latające postaci itd. */}
+        {/* Środek ekranu – tu możesz dodać animacje, chmurki itd. */}
         <View style={styles.spacer} />
 
         {/* Trampolina + dolne przyciski */}
@@ -59,7 +53,7 @@ export default function MainMenuScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push("../Options")}
+              onPress={() => router.push("/Options")}
               activeOpacity={0.8}
             >
               <Image
