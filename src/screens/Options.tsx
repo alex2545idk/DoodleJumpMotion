@@ -55,7 +55,7 @@ export const OptionsScreen = () => {
       <ImageBackground
         style={styles.container}
         imageStyle={styles.bgImage}
-        // Jak będziesz mieć tło w kratkę, możesz dodać:
+        
         // source={require("../../../assets/images/menu/paper-bg.png")}
       >
         <View style={styles.header}>
@@ -93,7 +93,7 @@ export const OptionsScreen = () => {
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             wybierz trudność, wróć do menu i naciśnij{" "}
-            <Text style={styles.footerBold}>play</Text> 🚀
+            <Text style={styles.footerBold}>play</Text>
           </Text>
         </View>
       </ImageBackground>
