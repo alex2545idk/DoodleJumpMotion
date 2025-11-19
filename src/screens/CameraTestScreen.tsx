@@ -43,8 +43,7 @@ export const CameraTestScreen = () => {
           };
         });
 
-        // Только после того как видео запущено
-        usePoseLandmarker(videoRef, setTorsoCoords);
+        // ❗ Ничего больше не вызываем
       } catch (err) {
         console.error("Не удалось получить камеру:", err);
       }
