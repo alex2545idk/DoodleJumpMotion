@@ -5,16 +5,20 @@ import {
   PoseLandmarker,
   PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 
 export function usePoseLandmarker(
   videoRef: React.RefObject<HTMLVideoElement | null>,
-  setTorsoCoords?: (coords: { x: number; y: number }) => void
+  setTorsoCoords?: (coords: { x: number; y: number }) => void,
+  setIsJumping?: (jumping: boolean) => void
 ) {
   const [poseLandmarker, setPoseLandmarker] = useState<PoseLandmarker | null>(
     null
   );
+  const lastTorsoY = useRef<number>(0);
+  const jumpThreshold = 0.05; // Порог для определения прыжка
+  const stableThreshold = 0.02; // Порог для стабильного положения
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -66,7 +70,7 @@ export function usePoseLandmarker(
         );
 
         if (results.landmarks?.[0] && setTorsoCoords) {
-          const landmarks: NormalizedLandmark[] = results.landmarks[0]; // массив NormalizedLandmark
+          const landmarks: NormalizedLandmark[] = results.landmarks[0];
 
           const leftShoulder = landmarks[11];
           const rightShoulder = landmarks[12];
@@ -74,7 +78,21 @@ export function usePoseLandmarker(
           if (leftShoulder && rightShoulder) {
             const torsoX = (leftShoulder.x + rightShoulder.x) / 2;
             const torsoY = (leftShoulder.y + rightShoulder.y) / 2;
+
             setTorsoCoords({ x: torsoX, y: torsoY });
+
+            // Определяем прыжок
+            if (lastTorsoY.current > 0) {
+              const deltaY = lastTorsoY.current - torsoY;
+
+              if (deltaY > jumpThreshold && setIsJumping) {
+                setIsJumping(true);
+              } else if (Math.abs(deltaY) < stableThreshold && setIsJumping) {
+                setIsJumping(false);
+              }
+            }
+
+            lastTorsoY.current = torsoY;
           }
         }
       } catch (err) {
@@ -87,5 +105,5 @@ export function usePoseLandmarker(
     animationFrameId = requestAnimationFrame(detectPose);
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [poseLandmarker, videoRef, setTorsoCoords]);
+  }, [poseLandmarker, videoRef, setTorsoCoords, setIsJumping]);
 }

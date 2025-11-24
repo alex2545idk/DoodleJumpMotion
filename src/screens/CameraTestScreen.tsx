@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { usePose } from "../contexts/PoseContext";
 import { usePoseLandmarker } from "../hooks/usePoseLandmarker";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -15,11 +16,11 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 export const CameraTestScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>("front");
-  const [torsoCoords, setTorsoCoords] = useState({ x: 0, y: 0 });
+  const { torsoCoords, setTorsoCoords, isJumping, setIsJumping } = usePose();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // ✅ Хук вызываем на верхнем уровне, внутри него проверка Platform.OS
-  usePoseLandmarker(videoRef, setTorsoCoords);
+  usePoseLandmarker(videoRef, setTorsoCoords, setIsJumping);
 
   // Запуск камеры на Web
   useEffect(() => {
@@ -42,10 +43,8 @@ export const CameraTestScreen = () => {
             resolve();
           };
         });
-
-        // ❗ Ничего больше не вызываем
       } catch (err) {
-        console.error("Не удалось получить камеру:", err);
+        console.error("Unable to obtain camera:", err);
       }
     };
 
@@ -55,7 +54,7 @@ export const CameraTestScreen = () => {
   if (!permission) {
     return (
       <View style={styles.container}>
-        <Text style={styles.message}>Загрузка...</Text>
+        <Text style={styles.message}>Loading...</Text>
       </View>
     );
   }
@@ -64,9 +63,9 @@ export const CameraTestScreen = () => {
     return (
       <View style={styles.container}>
         <View style={styles.permissionBox}>
-          <Text style={styles.title}>📷 Нужен доступ к камере</Text>
+          <Text style={styles.title}>📷 Need access to the camera</Text>
           <Text style={styles.subtitle}>
-            Для тестирования управления необходим доступ к камере
+            Camera access is required to test the controls.
           </Text>
           <TouchableOpacity style={styles.button} onPress={requestPermission}>
             <Text style={styles.buttonText}>Разрешить доступ</Text>
@@ -92,29 +91,34 @@ export const CameraTestScreen = () => {
 
       <View style={styles.overlay}>
         <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>✅ Камера работает!</Text>
+          <Text style={styles.infoTitle}>✅ The camera is working!</Text>
           <Text style={styles.infoText}>
-            • Камера: {facing === "front" ? "Фронтальная" : "Задняя"}
+            • Camera: {facing === "front" ? "Фронтальная" : "Задняя"}
           </Text>
           <Text style={styles.infoText}>
-            • Разрешение экрана: {screenWidth}x{screenHeight}
+            • Size: {screenWidth}x{screenHeight}
           </Text>
-          <Text style={styles.infoText}>• Платформа: {Platform.OS}</Text>
+          <Text style={styles.infoText}>• Platform: {Platform.OS}</Text>
           {Platform.OS === "web" && (
-            <Text style={styles.infoText}>
-              • Торс X: {torsoCoords.x.toFixed(2)}, Y:{" "}
-              {torsoCoords.y.toFixed(2)}
-            </Text>
+            <>
+              <Text style={styles.infoText}>
+                • Body X: {torsoCoords.x.toFixed(2)}, Y:{" "}
+                {torsoCoords.y.toFixed(2)}
+              </Text>
+              <Text style={styles.infoText}>
+                • Jump: {isJumping ? "ДА! 🚀" : "нет"}
+              </Text>
+            </>
           )}
         </View>
 
         <View style={styles.instructionsBox}>
-          <Text style={styles.instructionsTitle}>Инструкции:</Text>
+          <Text style={styles.instructionsTitle}>Camera control:</Text>
           <Text style={styles.instructionsText}>
-            1. Используйте фронтальную камеру{"\n"}
-            2. Встаньте на расстоянии 1-2 метра{"\n"}
-            3. Убедитесь, что торс виден полностью{"\n"}
-            4. Проверьте освещение (должно быть светло)
+            1. Move left/right to move the doodle{"\n"}
+            2. Jump up and down to make the doodle jump.{"\n"}
+            3. The higher the jump, the higher the doodle jumps.{"\n"}
+            4. Standing still - the doodle falls down
           </Text>
         </View>
       </View>
