@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -19,6 +19,7 @@ import {
   width,
 } from "../constants/config";
 import { usePose } from "../contexts/PoseContext";
+import { usePoseLandmarker } from "../hooks/usePoseLandmarker";
 
 interface PlatformType {
   x: SharedValue<number>;
@@ -40,112 +41,101 @@ export const GameScreen = () => {
   const scrollOffset = useRef(0);
   const lastJumpTime = useRef(0);
   const cameraOffset = useSharedValue(0);
+  const isOnPlatform = useRef(true); // Стартуем НА платформе
 
-  const { torsoCoords, isJumping } = usePose();
+  const { torsoCoords, isJumping, setTorsoCoords, setIsJumping } = usePose();
 
-  // Добавляем состояние для отслеживания нажатых клавиш
-  const [keysPressed, setKeysPressed] = useState({
-    ArrowLeft: false,
-    ArrowRight: false,
-  });
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [cameraActive, setCameraActive] = useState(false);
 
-  // Обработчики клавиатуры
+  const { startDetection, stopDetection } = usePoseLandmarker(
+    videoRef,
+    setTorsoCoords,
+    setIsJumping
+  );
+
+  // Инициализация камеры при монтировании компонента
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        setKeysPressed((prev) => ({ ...prev, [e.key]: true }));
+    const initializeCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false,
+        });
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          setCameraActive(true);
+          startDetection();
+        }
+      } catch (err) {
+        console.error("Ошибка инициализации камеры:", err);
+        setCameraActive(false);
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        setKeysPressed((prev) => ({ ...prev, [e.key]: false }));
-      }
-    };
+    initializeCamera();
 
-    // Добавляем обработчики событий
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
-    // Очистка при размонтировании
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
+      if (videoRef.current?.srcObject) {
+        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+        tracks.forEach((track) => track.stop());
+      }
+      stopDetection();
+      setCameraActive(false);
     };
   }, []);
 
-  // Обновляем направление движения на основе состояния клавиш
+  // Управление движением через камеру
   useEffect(() => {
-    if (keysPressed.ArrowLeft && !keysPressed.ArrowRight) {
-      moveDirection.current = "left";
-    } else if (keysPressed.ArrowRight && !keysPressed.ArrowLeft) {
-      moveDirection.current = "right";
-    } else {
+    if (torsoCoords.x === 0 && torsoCoords.y === 0) {
       moveDirection.current = null;
+      return;
     }
-  }, [keysPressed]);
 
-  // Управление через камеру - определение направления движения
-  useEffect(() => {
-    const centerX = 0.5; // Центр экрана по X
-    const deadZone = 0.1; // Мертвая зона в центре
+    const centerX = 0.5;
+    const deadZone = 0.15;
 
+    // ПРАВИЛЬНАЯ логика:
     if (torsoCoords.x < centerX - deadZone) {
-      moveDirection.current = "left";
-    } else if (torsoCoords.x > centerX + deadZone) {
       moveDirection.current = "right";
+    } else if (torsoCoords.x > centerX + deadZone) {
+      moveDirection.current = "left";
     } else {
       moveDirection.current = null;
     }
-  }, [torsoCoords.x]);
+  }, [torsoCoords.x, torsoCoords.y]);
 
   // Обработка прыжка через камеру
   useEffect(() => {
+    // Игнорируем нулевые координаты (камера еще не инициализирована)
+    if (torsoCoords.x === 0 && torsoCoords.y === 0) {
+      return;
+    }
+
     if (isJumping && !gameOver.current) {
       const currentTime = Date.now();
-      const MIN_JUMP_INTERVAL = 300;
+      const MIN_JUMP_INTERVAL = 400;
 
-      if (currentTime - lastJumpTime.current > MIN_JUMP_INTERVAL) {
-        // Высота прыжка зависит от того, насколько высоко поднялся торс
-        const jumpStrength = Math.min(1.5, 1 + (0.5 - torsoCoords.y) * 3);
+      // Прыгаем только если стоим на платформе
+      if (
+        currentTime - lastJumpTime.current > MIN_JUMP_INTERVAL &&
+        isOnPlatform.current
+      ) {
+        // Высота прыжка зависит от поднятия торса
+        const jumpStrength = Math.min(
+          1.5,
+          1 + Math.max(0, 0.5 - torsoCoords.y) * 2
+        );
         velocityY.value = -JUMP_HEIGHT * jumpStrength;
         lastJumpTime.current = currentTime;
+        isOnPlatform.current = false;
+
+        console.log("🚀 JUMP! Strength:", jumpStrength.toFixed(2));
       }
     }
-  }, [isJumping, torsoCoords.y]);
-
-  useEffect(() => {
-    const centerX = 0.5;
-    const deadZone = 0.1;
-
-    // Приоритет у камеры, если она активна
-    if (torsoCoords.x !== 0 || torsoCoords.y !== 0) {
-      // Камерное управление
-      if (torsoCoords.x < centerX - deadZone) {
-        moveDirection.current = "left";
-      } else if (torsoCoords.x > centerX + deadZone) {
-        moveDirection.current = "right";
-      } else {
-        // Если камера в мертвой зоне, проверяем клавиатуру
-        if (keysPressed.ArrowLeft && !keysPressed.ArrowRight) {
-          moveDirection.current = "left";
-        } else if (keysPressed.ArrowRight && !keysPressed.ArrowLeft) {
-          moveDirection.current = "right";
-        } else {
-          moveDirection.current = null;
-        }
-      }
-    } else {
-      // Если камера неактивна, используем только клавиатуру
-      if (keysPressed.ArrowLeft && !keysPressed.ArrowRight) {
-        moveDirection.current = "left";
-      } else if (keysPressed.ArrowRight && !keysPressed.ArrowLeft) {
-        moveDirection.current = "right";
-      } else {
-        moveDirection.current = null;
-      }
-    }
-  }, [torsoCoords.x, torsoCoords.y, keysPressed]);
+  }, [isJumping, torsoCoords.y, torsoCoords.x]);
 
   const platformPositions = useMemo(() => {
     const positions: { x: number; y: number }[] = [];
@@ -317,122 +307,28 @@ export const GameScreen = () => {
     platform.x.value = newX;
   };
 
-  // useEffect(() => {
-  //   if (gameOver.current) return;
-
-  //   const interval = setInterval(() => {
-  //     const currentTime = Date.now();
-
-  //     // Управление теперь работает и для касаний, и для клавиатуры
-  //     if (moveDirection.current === "left") {
-  //       x.value = Math.max(0, x.value - MOVE_SPEED);
-  //     } else if (moveDirection.current === "right") {
-  //       x.value = Math.min(width - DOODLE_SIZE, x.value + MOVE_SPEED);
-  //     }
-
-  //     velocityY.value += GRAVITY;
-  //     y.value += velocityY.value;
-
-  //     const SCROLL_THRESHOLD = height * 0.5;
-  //     const targetOffset = Math.max(0, SCROLL_THRESHOLD - y.value);
-
-  //     cameraOffset.value += (targetOffset - cameraOffset.value) * 0.15;
-
-  //     if (cameraOffset.value > 5) {
-  //       platforms.forEach((p) => {
-  //         const realY = p.y.value + cameraOffset.value;
-
-  //         if (realY > height + PLATFORM_HEIGHT + 100) {
-  //           createNewPlatform(p);
-  //           p.y.value -= cameraOffset.value;
-  //         }
-  //       });
-
-  //       scrollOffset.current = cameraOffset.value;
-  //       setScore(Math.floor(scrollOffset.current / 10));
-  //     }
-
-  //     const MIN_JUMP_INTERVAL = 200;
-  //     const canJumpNow = currentTime - lastJumpTime.current > MIN_JUMP_INTERVAL;
-
-  //     if (velocityY.value > 0 && canJumpNow) {
-  //       const doodleBottom = y.value + DOODLE_SIZE;
-
-  //       let closestPlatformIndex: number = -1;
-  //       let closestDistance: number = 999;
-
-  //       platforms.forEach((p, index) => {
-  //         const platformTop = p.y.value;
-
-  //         if (platformTop < doodleBottom - 5) return;
-
-  //         const isHorizontallyAligned =
-  //           x.value + DOODLE_SIZE > p.x.value + 15 &&
-  //           x.value < p.x.value + PLATFORM_WIDTH - 15;
-
-  //         if (!isHorizontallyAligned) return;
-
-  //         const distance = platformTop - doodleBottom;
-
-  //         if (distance >= 0 && distance < 20 && distance < closestDistance) {
-  //           closestPlatformIndex = index;
-  //           closestDistance = distance;
-  //         }
-  //       });
-
-  //       if (closestPlatformIndex >= 0) {
-  //         const closestPlatform = platforms[closestPlatformIndex];
-  //         lastJumpTime.current = currentTime;
-  //         lastPlatformHit.current = closestPlatformIndex;
-  //         y.value = closestPlatform.y.value - DOODLE_SIZE;
-  //         velocityY.value = -JUMP_HEIGHT;
-  //       }
-  //     }
-
-  //     if (velocityY.value < -5) {
-  //       lastPlatformHit.current = null;
-  //     }
-
-  //     if (y.value > height + DOODLE_SIZE) {
-  //       gameOver.current = true;
-  //       clearInterval(interval);
-  //       Alert.alert("Game Over", `Your score: ${score}`, [
-  //         {
-  //           text: "OK",
-  //           onPress: () => {},
-  //         },
-  //       ]);
-  //     }
-
-  //     if (!started.current && y.value < height - 150) {
-  //       started.current = true;
-  //     }
-  //   }, 16);
-
-  //   return () => clearInterval(interval);
-  // }, [platforms, score]);
-
+  // Основной игровой цикл
   useEffect(() => {
     if (gameOver.current) return;
 
     const interval = setInterval(() => {
-      // === СОХРАНЕНО: Управление движением ===
+      // === Управление движением ===
       if (moveDirection.current === "left") {
         x.value = Math.max(0, x.value - MOVE_SPEED);
       } else if (moveDirection.current === "right") {
         x.value = Math.min(width - DOODLE_SIZE, x.value + MOVE_SPEED);
       }
 
-      // === СОХРАНЕНО: Физика ===
+      // === Физика ===
       velocityY.value += GRAVITY;
       y.value += velocityY.value;
 
-      // === СОХРАНЕНО: Логика камеры ===
+      // === Логика камеры ===
       const SCROLL_THRESHOLD = height * 0.5;
       const targetOffset = Math.max(0, SCROLL_THRESHOLD - y.value);
       cameraOffset.value += (targetOffset - cameraOffset.value) * 0.15;
 
-      // === СОХРАНЕНО: Генерация платформ ===
+      // === Генерация платформ ===
       if (cameraOffset.value > 5) {
         platforms.forEach((p) => {
           const realY = p.y.value + cameraOffset.value;
@@ -445,38 +341,55 @@ export const GameScreen = () => {
         setScore(Math.floor(scrollOffset.current / 10));
       }
 
-      // === ИЗМЕНЕНО: Логика прыжков (только приземление) ===
+      // === Логика приземления (БЕЗ автоматического прыжка) ===
       if (velocityY.value > 0) {
+        // Падаем вниз
         const doodleBottom = y.value + DOODLE_SIZE;
-        let closestPlatformIndex: number = -1;
-        let closestDistance: number = 999;
+        const doodleCenterX = x.value + DOODLE_SIZE / 2;
+
+        let foundPlatform = false;
 
         platforms.forEach((p, index) => {
+          // Если уже нашли платформу, выходим
+          if (foundPlatform) return;
+
           const platformTop = p.y.value;
-          if (platformTop < doodleBottom - 5) return;
+          const platformBottom = platformTop + PLATFORM_HEIGHT;
+          const platformLeft = p.x.value;
+          const platformRight = platformLeft + PLATFORM_WIDTH;
 
+          // Проверяем вертикальное пересечение
+          const willIntersectVertically =
+            doodleBottom <= platformBottom &&
+            doodleBottom + velocityY.value >= platformTop;
+
+          // Проверяем горизонтальное пересечение
           const isHorizontallyAligned =
-            x.value + DOODLE_SIZE > p.x.value + 15 &&
-            x.value < p.x.value + PLATFORM_WIDTH - 15;
+            doodleCenterX > platformLeft + 10 &&
+            doodleCenterX < platformRight - 10;
 
-          if (!isHorizontallyAligned) return;
+          if (willIntersectVertically && isHorizontallyAligned) {
+            // Приземляемся на платформу
+            y.value = platformTop - DOODLE_SIZE;
+            velocityY.value = 0;
+            isOnPlatform.current = true;
+            lastPlatformHit.current = index;
+            foundPlatform = true;
 
-          const distance = platformTop - doodleBottom;
-          if (distance >= 0 && distance < 20 && distance < closestDistance) {
-            closestPlatformIndex = index;
-            closestDistance = distance;
+            console.log("✅ LANDED on platform", index);
           }
         });
 
-        if (closestPlatformIndex >= 0) {
-          const closestPlatform = platforms[closestPlatformIndex];
-          lastPlatformHit.current = closestPlatformIndex;
-          y.value = closestPlatform.y.value - DOODLE_SIZE;
-          velocityY.value = -JUMP_HEIGHT * 0.8; // Меньший отскок
+        // Если не нашли платформу для приземления
+        if (!foundPlatform) {
+          isOnPlatform.current = false;
         }
+      } else {
+        // Если летим вверх - точно не на платформе
+        isOnPlatform.current = false;
       }
 
-      // === СОХРАНЕНО: Game Over проверка ===
+      // === Game Over проверка ===
       if (y.value > height + DOODLE_SIZE) {
         gameOver.current = true;
         clearInterval(interval);
@@ -498,17 +411,42 @@ export const GameScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Скрытая камера для обработки позы */}
+      {Platform.OS === "web" && (
+        <video
+          ref={videoRef}
+          style={styles.hiddenCamera}
+          autoPlay
+          playsInline
+          muted
+        />
+      )}
+
       <View style={styles.debugInfo}>
         <Text style={styles.debugText}>
           Camera: X: {torsoCoords.x.toFixed(2)} Y: {torsoCoords.y.toFixed(2)}
         </Text>
         <Text style={styles.debugText}>
-          Direction: {moveDirection.current || "null"}
+          Direction: {moveDirection.current || "CENTER"}
         </Text>
         <Text style={styles.debugText}>
           Jumping: {isJumping ? "YES" : "NO"}
         </Text>
+        <Text style={styles.debugText}>
+          On Platform: {isOnPlatform.current ? "YES" : "NO"}
+        </Text>
+        <Text style={styles.debugText}>
+          Camera Active: {cameraActive ? "YES" : "NO"}
+        </Text>
+        <Text style={styles.debugText}>
+          Camera Valid:{" "}
+          {torsoCoords.x !== 0 || torsoCoords.y !== 0 ? "YES" : "NO"}
+        </Text>
+        <Text style={styles.debugText}>
+          VelocityY: {velocityY.value.toFixed(1)}
+        </Text>
       </View>
+
       <Score y={score} />
 
       <Animated.View style={doodleStyle}>
@@ -527,28 +465,6 @@ export const GameScreen = () => {
           />
         </Animated.View>
       ))}
-
-      {/* Управление касаниями остается для мобильных устройств */}
-      <View
-        style={styles.leftControl}
-        onTouchStart={() => (moveDirection.current = "left")}
-        onTouchEnd={() => {
-          // Сбрасываем только если не нажата клавиша
-          if (!keysPressed.ArrowLeft) {
-            moveDirection.current = null;
-          }
-        }}
-      />
-      <View
-        style={styles.rightControl}
-        onTouchStart={() => (moveDirection.current = "right")}
-        onTouchEnd={() => {
-          // Сбрасываем только если не нажата клавиша
-          if (!keysPressed.ArrowRight) {
-            moveDirection.current = null;
-          }
-        }}
-      />
     </View>
   );
 };
@@ -563,22 +479,6 @@ const styles = StyleSheet.create({
     width: DOODLE_SIZE,
     height: DOODLE_SIZE,
   },
-  leftControl: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    width: width / 2,
-    height: height,
-    backgroundColor: "transparent",
-  },
-  rightControl: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    width: width / 2,
-    height: height,
-    backgroundColor: "transparent",
-  },
   debugInfo: {
     position: "absolute",
     top: 50,
@@ -592,5 +492,13 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 12,
     fontFamily: "monospace",
+  },
+  hiddenCamera: {
+    position: "absolute",
+    top: -1000,
+    left: -1000,
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
 });

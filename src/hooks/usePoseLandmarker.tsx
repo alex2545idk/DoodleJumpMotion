@@ -16,9 +16,20 @@ export function usePoseLandmarker(
   const [poseLandmarker, setPoseLandmarker] = useState<PoseLandmarker | null>(
     null
   );
+  const [isActive, setIsActive] = useState(false);
   const lastTorsoY = useRef<number>(0);
-  const jumpThreshold = 0.05; // Порог для определения прыжка
-  const stableThreshold = 0.02; // Порог для стабильного положения
+  const jumpThreshold = 0.05;
+  const stableThreshold = 0.02;
+
+  const startDetection = () => {
+    console.log("Starting pose detection");
+    setIsActive(true);
+  };
+
+  const stopDetection = () => {
+    console.log("Stopping pose detection");
+    setIsActive(false);
+  };
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -52,17 +63,22 @@ export function usePoseLandmarker(
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
-    if (!poseLandmarker || !videoRef.current) return;
+    if (!poseLandmarker || !videoRef.current || !isActive) return;
 
     const video = videoRef.current;
     let animationFrameId: number;
 
+    let lastDetectionTime = 0;
+    const DETECTION_INTERVAL = 100;
+
     const detectPose = async () => {
-      if (!video || video.readyState < 2) {
+      const now = Date.now();
+      if (now - lastDetectionTime < DETECTION_INTERVAL) {
         animationFrameId = requestAnimationFrame(detectPose);
         return;
       }
 
+      lastDetectionTime = now;
       try {
         const results: PoseLandmarkerResult = poseLandmarker.detectForVideo(
           video,
@@ -71,7 +87,6 @@ export function usePoseLandmarker(
 
         if (results.landmarks?.[0] && setTorsoCoords) {
           const landmarks: NormalizedLandmark[] = results.landmarks[0];
-
           const leftShoulder = landmarks[11];
           const rightShoulder = landmarks[12];
 
@@ -81,17 +96,14 @@ export function usePoseLandmarker(
 
             setTorsoCoords({ x: torsoX, y: torsoY });
 
-            // Определяем прыжок
             if (lastTorsoY.current > 0) {
               const deltaY = lastTorsoY.current - torsoY;
-
               if (deltaY > jumpThreshold && setIsJumping) {
                 setIsJumping(true);
               } else if (Math.abs(deltaY) < stableThreshold && setIsJumping) {
                 setIsJumping(false);
               }
             }
-
             lastTorsoY.current = torsoY;
           }
         }
@@ -105,5 +117,8 @@ export function usePoseLandmarker(
     animationFrameId = requestAnimationFrame(detectPose);
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [poseLandmarker, videoRef, setTorsoCoords, setIsJumping]);
+  }, [poseLandmarker, videoRef, setTorsoCoords, setIsJumping, isActive]);
+
+  // ✅ Возвращаем функции
+  return { startDetection, stopDetection };
 }
