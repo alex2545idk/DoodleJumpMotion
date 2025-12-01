@@ -50,3 +50,7 @@ func (r *UserRepository) GetByID(id int64) (*domain.User, error) {
     }
     return &user, nil
 }
+
+func (r *UserRepository) UpdateUser(u *domain.User) error {
+    return r.db.Save(u).Error
+}

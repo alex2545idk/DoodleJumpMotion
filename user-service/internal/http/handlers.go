@@ -124,3 +124,42 @@ func GetUserByIDHandler(userService *services.UserService) gin.HandlerFunc {
         })
     }
 }
+
+func (h *AuthHandler) UpdateCups(c *gin.Context) {
+    idParam := c.Param("id")
+    id, err := strconv.ParseInt(idParam, 10, 64)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+        return
+    }
+
+    var body struct {
+        CupChange int `json:"cup_change"`
+    }
+
+    if err := c.BindJSON(&body); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
+        return
+    }
+
+    user, err := h.userService.GetByID(id)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+        return
+    }
+
+    user.CupCount += body.CupChange
+    if user.CupCount < 0 {
+        user.CupCount = 0
+    }
+
+    if err := h.userService.UpdateUser(user); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "id":        user.ID,
+        "new_cups":  user.CupCount,
+    })
+}

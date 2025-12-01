@@ -63,3 +63,7 @@ func (s *UserService) GetByEmail(email string) (*domain.User, error) {
 func (s *UserService) GetByID(id int64) (*domain.User, error) {
     return s.repo.GetByID(id)
 }
+
+func (s *UserService) UpdateUser(u *domain.User) error {
+    return s.repo.UpdateUser(u)
+}

@@ -3,6 +3,7 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -55,3 +56,18 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func InternalAuthMiddleware() gin.HandlerFunc {
+	requiredToken := os.Getenv("INTERNAL_API_TOKEN")
+
+	return func(c *gin.Context) {
+		internalToken := c.GetHeader("INTERNAL_API_TOKEN")
+		if internalToken == "" || internalToken != requiredToken {
+            c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+            c.Abort()
+            return
+        } 	
+		c.Next()
+	}
+}
+

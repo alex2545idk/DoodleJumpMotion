@@ -1,0 +1,31 @@
+package routes
+
+import (
+	"session-service/internal/handlers"
+
+	"github.com/gin-gonic/gin"
+)
+
+// RegisterRoutes регистрирует все эндпоинты сервиса
+func RegisterRoutes(r *gin.Engine) {
+    // Пример маршрутов для сессий и матчей
+    sessionHandler := handlers.NewSessionHandler()
+    matchHandler := handlers.NewMatchHandler()
+
+    // Группы маршрутов
+    sessionRoutes := r.Group("/sessions")
+    {
+        sessionRoutes.POST("/", sessionHandler.CreateSession)
+        sessionRoutes.GET("/:id", sessionHandler.GetSession)
+		sessionRoutes.PATCH("/:id/join", sessionHandler.JoinSession)
+		sessionRoutes.POST("/:id/finish", sessionHandler.FinishSession)
+        // Добавишь остальные методы
+    }
+
+    matchRoutes := r.Group("/matches")
+    {
+        matchRoutes.POST("/", matchHandler.CreateMatch)
+        matchRoutes.GET("/:id", matchHandler.GetMatch)
+        // Добавишь остальные методы
+    }
+}
