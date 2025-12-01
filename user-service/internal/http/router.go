@@ -22,7 +22,7 @@ func RegisterRoutes(db *gorm.DB) *gin.Engine {
 	r.GET("/users/:id", AuthMiddleware(), GetUserByIDHandler(userService))
 
 	internal := r.Group("/users")
-	internal.Use(InternalAuthMiddleware())
+	internal.Use(AuthMiddleware())
 	{
 		internal.PUT("/:id/cups", authHandler.UpdateCups) 
 	}

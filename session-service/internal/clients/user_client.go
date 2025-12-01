@@ -22,10 +22,12 @@ type UserResponse struct {
 }
 
 func NewUserClient() *UserClient {
+	fmt.Println("USER_SERVICE_URL =", os.Getenv("USER_SERVICE_URL"))
+	fmt.Println("ADMIN_JWT_TOKEN =", os.Getenv("ADMIN_JWT_TOKEN"))
     return &UserClient{
         BaseURL:        os.Getenv("USER_SERVICE_URL"),            // url user-service http://localhost:8080
         AdminJWT:       os.Getenv("ADMIN_JWT_TOKEN"),             // admin jwt token
-        InternalToken:  os.Getenv("INTERNAL_API_TOKEN"),          // super_secret_token_123
+        //InternalToken:  os.Getenv("INTERNAL_API_TOKEN"),          // super_secret_token_123
     }
 }
 
@@ -65,10 +67,28 @@ func (c *UserClient) ChangeCups(id uint, diff int) error {
 
     req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBody))
     req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("INTERNAL_API_TOKEN", c.InternalToken)
+    //req.Header.Add("INTERNAL_API_TOKEN", c.InternalToken)
 	req.Header.Set("Authorization", "Bearer "+c.AdminJWT)
 
-    resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+        CheckRedirect: func(req *http.Request, via []*http.Request) error {
+            return http.ErrUseLastResponse
+        },
+    }
+
+	// --- Логирование URL и headers ---
+    fmt.Println("User Service URL:", url)
+    fmt.Println("Headers:")
+    for k, v := range req.Header {
+        fmt.Printf("  %s: %s\n", k, v)
+    }
+    fmt.Println("Body:", string(jsonBody))
+    // -----------------------------------
+
+	fmt.Println("Request method:", req.Method)
+	fmt.Println("Request URL:", req.URL.String())
+
+    resp, err := client.Do(req)
     if err != nil {
         return err
     }

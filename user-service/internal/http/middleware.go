@@ -48,6 +48,11 @@ func AuthMiddleware() gin.HandlerFunc {
 		if r, ok := claims["role"].(string); ok {
     		role = r
 		}
+		if role != "admin" {
+    		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden, admin only"})
+    		c.Abort()
+    		return
+		}
 
 		c.Set("user_id", userID)
 		c.Set("username", username)
@@ -61,6 +66,7 @@ func InternalAuthMiddleware() gin.HandlerFunc {
 	requiredToken := os.Getenv("INTERNAL_API_TOKEN")
 
 	return func(c *gin.Context) {
+		fmt.Println("All headers:", c.Request.Header)
 		internalToken := c.GetHeader("INTERNAL_API_TOKEN")
 		if internalToken == "" || internalToken != requiredToken {
             c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
