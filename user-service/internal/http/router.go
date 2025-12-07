@@ -8,25 +8,20 @@ import (
 	"gorm.io/gorm"
 )
 
-func RegisterRoutes(db *gorm.DB) *gin.Engine {
-	r := gin.Default()
+func RegisterRoutes(db *gorm.DB, r *gin.Engine) {
+    userRepo := repository.NewUserRepository(db)
+    userService := services.NewUserService(userRepo)
+    authHandler := NewAuthHandler(userService)
 
-	userRepo := repository.NewUserRepository(db)
-	userService := services.NewUserService(userRepo)
-	authHandler := NewAuthHandler(userService)
+    r.POST("/auth/register", authHandler.Register)
+    r.POST("/auth/login", authHandler.Login)
+    r.GET("/profile", IdMiddleware(), ProfileHandler)
+    r.GET("/users/:id", AuthMiddleware(), GetUserByIDHandler(userService))
 
-	r.POST("/auth/register", authHandler.Register)
-	r.GET("/ping", func(c *gin.Context) { c.JSON(200, gin.H{"message": "pong"}) })
-	r.POST("/auth/login", authHandler.Login)
-	r.GET("/profile", AuthMiddleware(), ProfileHandler)
-	r.GET("/users/:id", AuthMiddleware(), GetUserByIDHandler(userService))
-
-	internal := r.Group("/users")
-	internal.Use(AuthMiddleware())
-	{
-		internal.PUT("/:id/cups", authHandler.UpdateCups) 
-	}
-
-	return r
+    internal := r.Group("/users")
+    internal.Use(AuthMiddleware())
+    {
+        internal.PUT("/:id/cups", authHandler.UpdateCups)
+    }
 }
 

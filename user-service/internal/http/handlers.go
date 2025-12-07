@@ -95,10 +95,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func ProfileHandler(c *gin.Context) {
 	userID := c.GetInt64("user_id")
 	username := c.GetString("username")
+    cup_count := c.GetInt("cup_count")
+    highest_cups := c.GetInt("highest_cups")
+    current_arenaid := c.GetInt("current_arenaid")
+    level := c.GetInt("level")
+    experience := c.GetInt("experience")
+    
 
 	c.JSON(200, gin.H{
 		"user_id":  userID,
 		"username": username,
+        "cup_count": cup_count,
+        "highest_cups": highest_cups,
+        "current_arenaid": current_arenaid,
+        "level": level,
+        "experience": experience,
 	})
 }
 

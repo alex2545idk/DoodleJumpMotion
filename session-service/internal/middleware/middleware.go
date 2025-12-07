@@ -16,6 +16,9 @@ func AuthMiddleware(hub *ws.Hub, sessionService *services.SessionService) gin.Ha
     return func(c *gin.Context) {
         tokenStr := c.Request.Header.Get("Authorization")
         if tokenStr == "" {
+            tokenStr = "Bearer " + c.Query("token")
+        }
+        if tokenStr == "" {
             c.JSON(http.StatusBadRequest, gin.H{"error": "user_id missing"})
             c.Abort()
             return

@@ -62,6 +62,43 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+func IdMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        authHeader := c.GetHeader("Authorization")
+        if authHeader == "" {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header missing"})
+            c.Abort()
+            return
+        }
+
+        tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+            if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+                return nil, fmt.Errorf("unexpected signing method")
+            }
+            return jwtSecret, nil
+        })
+
+        if err != nil || !token.Valid {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+            c.Abort()
+            return
+        }
+
+        claims := token.Claims.(jwt.MapClaims)
+        userID := int64(claims["user_id"].(float64))
+        username := ""
+        if u, ok := claims["username"].(string); ok {
+            username = u
+        }
+
+        c.Set("user_id", userID)
+        c.Set("username", username)
+
+        c.Next()
+    }
+}
+
 func InternalAuthMiddleware() gin.HandlerFunc {
 	requiredToken := os.Getenv("INTERNAL_API_TOKEN")
 
