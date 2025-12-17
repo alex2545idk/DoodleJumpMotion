@@ -34,16 +34,24 @@
           Steruj swoją postacią za pomocą ruchu ciała dzięki kamerze!
           Futurystyczna odsłona klasycznego Doodle Jump.
         </p>
-        <div id="user-info">
-          <!-- Здесь будут данные пользователя -->
-        </div>
 
+        <div id="user-info"><!-- сюда вставится username после логина --></div>
         <div id="auth-error" style="color: red; display: none">
           Nie udało się pobrać danych użytkownika.
           <a href="login.html">Zaloguj się ponownie</a>
         </div>
 
-        <a class="btn-primary" href="game.html">Rozpocznij grę</a>
+        <!-- БЛОК МАТЧМЕЙКИНГА -->
+        <div
+          id="matchStatus"
+          style="margin: 1rem 0; color: #353535; font-weight: bold"
+        >
+          Kliknij „Zagraj”, aby znaleźć przeciwnika.
+        </div>
+        <button id="findMatchBtn" class="btn-primary">Zagraj</button>
+        <button id="connectBtn" class="btn-primary" style="display: none">
+          Dołącz do gry
+        </button>
       </section>
     </main>
 
@@ -51,4 +59,61 @@
       <div class="container">© 2025 Doodle Jump Motion</div>
     </footer>
   </body>
+
+  <script>
+    const MM_URL = "http://localhost:8084"; // matchmaker
+    const USER_URL = "http://localhost:8080"; // user-service (для JWT)
+
+    const token = localStorage.getItem("jwt"); // после логина сохраняете туда же
+    let pollInterval;
+
+    /* ---------- A. начать поиск ---------- */
+    document.getElementById("findMatchBtn").onclick = async () => {
+      if (!token) {
+        alert("Сначала войдите");
+        return;
+      }
+      document.getElementById("matchStatus").innerText = "Ищем соперника...";
+
+      const res = await fetch(`${MM_URL}/enqueue`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({ trophies: 0, arena: 1 }), // ваши реальные поля
+      });
+      if (!res.ok) {
+        alert("Ошибка enqueue");
+        return;
+      }
+      const { request_id } = await res.json();
+
+      /* ---------- B. опрашиваем статус ---------- */
+      pollInterval = setInterval(async () => {
+        const r = await fetch(`${MM_URL}/enqueue/${request_id}`, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) return;
+        const st = await r.json();
+        if (st.status === "found") {
+          clearInterval(pollInterval);
+          document.getElementById("matchStatus").innerText = "Соперник найден!";
+          document.getElementById("connectBtn").style.display = "inline-block";
+          // прячем кнопку «Играть»
+          document.getElementById("findMatchBtn").style.display = "none";
+          // кладём параметры в дата-атрибуты кнопки
+          document.getElementById("connectBtn").dataset.seed = st.seed;
+          document.getElementById("connectBtn").dataset.sid = st.session_id;
+        }
+      }, 1000);
+    };
+
+    /* ---------- C. перейти в игру ---------- */
+    document.getElementById("connectBtn").onclick = function () {
+      const seed = this.dataset.seed;
+      const sid = this.dataset.sid;
+      location.href = `game.html?seed=${seed}&sessionId=${sid}`;
+    };
+  </script>
 </html>

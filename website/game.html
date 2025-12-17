@@ -6,7 +6,20 @@
     <title>Gra – Doodle Jump Motion</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="style/gameFrame.css" />
-    <script src="script.js" defer></script>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const sessionId = params.get("sessionId"); // ❗ не 'session'
+      const seed = params.get("seed");
+
+      if (!sessionId || !seed) {
+        alert("Brak sessionId lub seed w URL");
+        window.location.href = "index.html";
+      }
+
+      // ❗ передай в глобальные переменные, если используешь их
+      window.GAME_SEED = Number(seed);
+      window.USER_ID = Number(sessionId);
+    </script>
   </head>
   <body>
     <!-- iframe на локальный Expo Web -->

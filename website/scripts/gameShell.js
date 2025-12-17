@@ -8,7 +8,7 @@ const getUser = () => JSON.parse(localStorage.getItem("user") || "{}");
 
 // откуда берём sessionId
 function getSessionId() {
-  const q = new URLSearchParams(location.search).get("session");
+  const q = new URLSearchParams(location.search).get("sessionId");
   if (q) return q;
   return localStorage.getItem("sessionId");
 }
