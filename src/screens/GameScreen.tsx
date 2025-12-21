@@ -34,6 +34,16 @@ interface PlatformType {
 // const userId = (window as any).USER_ID ?? 0;
 
 export const GameScreen = ({ seed }: { seed: number }) => {
+  const platformPositions = useSeededPlatforms(seed);
+  const rawPlatformPositions = useSeededPlatforms(seed);
+  const platformsData = useMemo(() => {
+    if (rawPlatformPositions && rawPlatformPositions.length >= 20) {
+      return rawPlatformPositions;
+    }
+    // Заглушка из 20 элементов с нулями
+    return Array(20).fill({ x: 0, y: 0 });
+  }, [platformPositions]);
+
   const [userId, setUserId] = useState<number>(0);
 
   useEffect(() => {
@@ -47,15 +57,10 @@ export const GameScreen = ({ seed }: { seed: number }) => {
   }, []);
   const seedRef = useRef(seed); // текущий seed
   const rndRef = useRef<SeededRandom | null>(null);
-  const PLATFORM_COUNT = 20;
-
-  const platformPositions = useSeededPlatforms(seed);
 
   const x = useSharedValue(width / 2 - DOODLE_SIZE / 2);
   const y = useSharedValue(
-    platformPositions[0]?.y != null
-      ? platformPositions[0].y - DOODLE_SIZE - 2
-      : 0
+    platformsData[0].y !== 0 ? platformsData[0].y - DOODLE_SIZE - 2 : 0
   );
 
   const velocityY = useSharedValue(0);
@@ -192,46 +197,113 @@ export const GameScreen = ({ seed }: { seed: number }) => {
   //const platformPositions = useSeededPlatforms(SEED);
 
   // Создаем shared values для всех 20 платформ
-  const platform0X = useSharedValue(platformPositions[0].x);
-  const platform0Y = useSharedValue(platformPositions[0].y);
-  const platform1X = useSharedValue(platformPositions[1].x);
-  const platform1Y = useSharedValue(platformPositions[1].y);
-  const platform2X = useSharedValue(platformPositions[2].x);
-  const platform2Y = useSharedValue(platformPositions[2].y);
-  const platform3X = useSharedValue(platformPositions[3].x);
-  const platform3Y = useSharedValue(platformPositions[3].y);
-  const platform4X = useSharedValue(platformPositions[4].x);
-  const platform4Y = useSharedValue(platformPositions[4].y);
-  const platform5X = useSharedValue(platformPositions[5].x);
-  const platform5Y = useSharedValue(platformPositions[5].y);
-  const platform6X = useSharedValue(platformPositions[6].x);
-  const platform6Y = useSharedValue(platformPositions[6].y);
-  const platform7X = useSharedValue(platformPositions[7].x);
-  const platform7Y = useSharedValue(platformPositions[7].y);
-  const platform8X = useSharedValue(platformPositions[8].x);
-  const platform8Y = useSharedValue(platformPositions[8].y);
-  const platform9X = useSharedValue(platformPositions[9].x);
-  const platform9Y = useSharedValue(platformPositions[9].y);
-  const platform10X = useSharedValue(platformPositions[10].x);
-  const platform10Y = useSharedValue(platformPositions[10].y);
-  const platform11X = useSharedValue(platformPositions[11].x);
-  const platform11Y = useSharedValue(platformPositions[11].y);
-  const platform12X = useSharedValue(platformPositions[12].x);
-  const platform12Y = useSharedValue(platformPositions[12].y);
-  const platform13X = useSharedValue(platformPositions[13].x);
-  const platform13Y = useSharedValue(platformPositions[13].y);
-  const platform14X = useSharedValue(platformPositions[14].x);
-  const platform14Y = useSharedValue(platformPositions[14].y);
-  const platform15X = useSharedValue(platformPositions[15].x);
-  const platform15Y = useSharedValue(platformPositions[15].y);
-  const platform16X = useSharedValue(platformPositions[16].x);
-  const platform16Y = useSharedValue(platformPositions[16].y);
-  const platform17X = useSharedValue(platformPositions[17].x);
-  const platform17Y = useSharedValue(platformPositions[17].y);
-  const platform18X = useSharedValue(platformPositions[18].x);
-  const platform18Y = useSharedValue(platformPositions[18].y);
-  const platform19X = useSharedValue(platformPositions[19].x);
-  const platform19Y = useSharedValue(platformPositions[19].y);
+  const platform0X = useSharedValue(platformsData[0].x);
+  const platform0Y = useSharedValue(platformsData[0].y);
+  const platform1X = useSharedValue(platformsData[1].x);
+  const platform1Y = useSharedValue(platformsData[1].y);
+  const platform2X = useSharedValue(platformsData[2].x);
+  const platform2Y = useSharedValue(platformsData[2].y);
+  const platform3X = useSharedValue(platformsData[3].x);
+  const platform3Y = useSharedValue(platformsData[3].y);
+  const platform4X = useSharedValue(platformsData[4].x);
+  const platform4Y = useSharedValue(platformsData[4].y);
+  const platform5X = useSharedValue(platformsData[5].x);
+  const platform5Y = useSharedValue(platformsData[5].y);
+  const platform6X = useSharedValue(platformsData[6].x);
+  const platform6Y = useSharedValue(platformsData[6].y);
+  const platform7X = useSharedValue(platformsData[7].x);
+  const platform7Y = useSharedValue(platformsData[7].y);
+  const platform8X = useSharedValue(platformsData[8].x);
+  const platform8Y = useSharedValue(platformsData[8].y);
+  const platform9X = useSharedValue(platformsData[9].x);
+  const platform9Y = useSharedValue(platformsData[9].y);
+  const platform10X = useSharedValue(platformsData[10].x);
+  const platform10Y = useSharedValue(platformsData[10].y);
+  const platform11X = useSharedValue(platformsData[11].x);
+  const platform11Y = useSharedValue(platformsData[11].y);
+  const platform12X = useSharedValue(platformsData[12].x);
+  const platform12Y = useSharedValue(platformsData[12].y);
+  const platform13X = useSharedValue(platformsData[13].x);
+  const platform13Y = useSharedValue(platformsData[13].y);
+  const platform14X = useSharedValue(platformsData[14].x);
+  const platform14Y = useSharedValue(platformsData[14].y);
+  const platform15X = useSharedValue(platformsData[15].x);
+  const platform15Y = useSharedValue(platformsData[15].y);
+  const platform16X = useSharedValue(platformsData[16].x);
+  const platform16Y = useSharedValue(platformsData[16].y);
+  const platform17X = useSharedValue(platformsData[17].x);
+  const platform17Y = useSharedValue(platformsData[17].y);
+  const platform18X = useSharedValue(platformsData[18].x);
+  const platform18Y = useSharedValue(platformsData[18].y);
+  const platform19X = useSharedValue(platformsData[19].x);
+  const platform19Y = useSharedValue(platformsData[19].y);
+
+  // const platforms = useMemo<PlatformType[]>(
+  //   () => [
+  //     { x: platform0X, y: platform0Y },
+  //     { x: platform1X, y: platform1Y },
+  //     { x: platform2X, y: platform2Y },
+  //     { x: platform3X, y: platform3Y },
+  //     { x: platform4X, y: platform4Y },
+  //     { x: platform5X, y: platform5Y },
+  //     { x: platform6X, y: platform6Y },
+  //     { x: platform7X, y: platform7Y },
+  //     { x: platform8X, y: platform8Y },
+  //     { x: platform9X, y: platform9Y },
+  //     { x: platform10X, y: platform10Y },
+  //     { x: platform11X, y: platform11Y },
+  //     { x: platform12X, y: platform12Y },
+  //     { x: platform13X, y: platform13Y },
+  //     { x: platform14X, y: platform14Y },
+  //     { x: platform15X, y: platform15Y },
+  //     { x: platform16X, y: platform16Y },
+  //     { x: platform17X, y: platform17Y },
+  //     { x: platform18X, y: platform18Y },
+  //     { x: platform19X, y: platform19Y },
+  //   ],
+  //   [
+  //     platform0X,
+  //     platform0Y,
+  //     platform1X,
+  //     platform1Y,
+  //     platform2X,
+  //     platform2Y,
+  //     platform3X,
+  //     platform3Y,
+  //     platform4X,
+  //     platform4Y,
+  //     platform5X,
+  //     platform5Y,
+  //     platform6X,
+  //     platform6Y,
+  //     platform7X,
+  //     platform7Y,
+  //     platform8X,
+  //     platform8Y,
+  //     platform9X,
+  //     platform9Y,
+  //     platform10X,
+  //     platform10Y,
+  //     platform11X,
+  //     platform11Y,
+  //     platform12X,
+  //     platform12Y,
+  //     platform13X,
+  //     platform13Y,
+  //     platform14X,
+  //     platform14Y,
+  //     platform15X,
+  //     platform15Y,
+  //     platform16X,
+  //     platform16Y,
+  //     platform17X,
+  //     platform17Y,
+  //     platform18X,
+  //     platform18Y,
+  //     platform19X,
+  //     platform19Y,
+  //   ]
+  // );
 
   const platforms = useMemo<PlatformType[]>(
     () => [
@@ -442,12 +514,17 @@ export const GameScreen = ({ seed }: { seed: number }) => {
     }
   }, [seed]);
 
-  if (!seed) {
+  if (!rawPlatformPositions || rawPlatformPositions.length < 20) {
     return (
-      <View style={styles.container}>
-        <Text>Loading level...</Text>
+      <View style={[styles.container, { backgroundColor: "red" }]}>
+        <Text style={{ fontSize: 50, color: "white" }}>
+          WAITING FOR DATA...
+        </Text>
       </View>
     );
+  }
+  if (!seed) {
+    return <Text>Loading level...</Text>;
   }
 
   return (
@@ -514,7 +591,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#87CEEB",
-    position: "relative",
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+    top: 0,
+    left: 0,
   },
   doodleInner: {
     width: DOODLE_SIZE,

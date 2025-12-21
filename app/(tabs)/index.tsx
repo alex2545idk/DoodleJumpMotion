@@ -8,11 +8,28 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const gameSeed = (window as any).GAME_SEED;
-      if (gameSeed) {
-        setSeed(gameSeed);
+      const params = new URLSearchParams(window.location.search);
+      const urlSeed = params.get("seed");
+
+      const globalSeed = urlSeed || (window.parent as any).GAME_SEED;
+      if (globalSeed) {
+        console.log("✅ Seed found:", globalSeed);
+        setSeed(Number(globalSeed));
       }
     }
+
+    const HandleMessage = (event: any) => {
+      if (event.data && event.data.type === "seed") {
+        console.log("React получил seed через postMessage:", event.data.value);
+        setSeed(Number(event.data.seed));
+      }
+    };
+
+    window.addEventListener("message", HandleMessage);
+
+    return () => {
+      window.removeEventListener("message", HandleMessage);
+    };
   }, []);
 
   if (!seed) {
@@ -23,5 +40,5 @@ export default function HomeScreen() {
     );
   }
 
-  return <GameScreen seed={seed} />;
+  return <GameScreen key={seed} seed={seed} />;
 }
