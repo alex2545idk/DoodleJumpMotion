@@ -4,32 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gra – Doodle Jump Motion</title>
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="style/gameFrame.css" />
     <script>
       const params = new URLSearchParams(location.search);
-      const sessionId = params.get("sessionId"); // ❗ не 'session'
+      const sessionId = params.get("sessionId");
       const seed = params.get("seed");
 
-      if (!sessionId || !seed) {
-        alert("Brak sessionId lub seed w URL");
-        window.location.href = "index.html";
-      }
+      // Формируем URL для iframe с параметрами
+      const iframeSrc = `http://localhost:8079/?seed=${seed}&sessionId=${sessionId}`;
 
-      // ❗ передай в глобальные переменные, если используешь их
-      window.GAME_SEED = Number(seed);
-      window.USER_ID = Number(sessionId);
+      // Когда DOM загрузится, установим src
+      window.onload = () => {
+        document.getElementById("gameIframe").src = iframeSrc;
+      };
     </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden; /* Чтобы не было двойной прокрутки */
+        background-color: #000; /* Фон страницы за iframe */
+      }
+      iframe {
+        border: none;
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+    </style>
   </head>
   <body>
     <!-- iframe на локальный Expo Web -->
     <iframe
-      src="http://localhost:8079"
-      width="100%"
-      height="100%"
+      id="gameIframe"
+      src=""
       allow="camera; microphone; autoplay; fullscreen"
-    >
-    </iframe>
+      style="width: 100vw; height: 100vh; border: none"
+    ></iframe>
     <script type="module" src="scripts/gameShell.js"></script>
   </body>
 </html>
