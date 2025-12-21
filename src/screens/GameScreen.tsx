@@ -33,23 +33,30 @@ interface PlatformType {
 // const SEED = (window as any).GAME_SEED ?? 0;
 // const userId = (window as any).USER_ID ?? 0;
 
-export const GameScreen = () => {
-  const [seed, setSeed] = useState(0);
-  const [userId, setUserId] = useState(0);
+export const GameScreen = ({ seed }: { seed: number }) => {
+  const [userId, setUserId] = useState<number>(0);
 
   useEffect(() => {
-    // выполнится ТОЛЬКО в браузере
-    setSeed((window as any).GAME_SEED ?? 0);
-    setUserId((window as any).USER_ID ?? 0);
+    if (typeof window !== "undefined") {
+      const gameSeed = (window as any).GAME_SEED;
+      const userId = (window as any).USER_ID;
+      if (userId) {
+        setUserId(userId);
+      }
+    }
   }, []);
   const seedRef = useRef(seed); // текущий seed
-  const rndRef = useRef(new SeededRandom(seed));
+  const rndRef = useRef<SeededRandom | null>(null);
   const PLATFORM_COUNT = 20;
 
   const platformPositions = useSeededPlatforms(seed);
 
   const x = useSharedValue(width / 2 - DOODLE_SIZE / 2);
-  const y = useSharedValue(platformPositions[0].y - DOODLE_SIZE - 2);
+  const y = useSharedValue(
+    platformPositions[0]?.y != null
+      ? platformPositions[0].y - DOODLE_SIZE - 2
+      : 0
+  );
 
   const velocityY = useSharedValue(0);
 
@@ -312,6 +319,8 @@ export const GameScreen = () => {
   );
 
   const createNewPlatform = (platform: PlatformType) => {
+    if (!rndRef.current) return;
+
     const highestY = Math.min(...platforms.map((p) => p.y.value));
 
     const verticalDistance = rndRef.current.range(60, 100); // 60-100 вместо 40-60
@@ -427,9 +436,19 @@ export const GameScreen = () => {
   }, [platforms, score]);
 
   useEffect(() => {
-    seedRef.current = seed;
-    rndRef.current = new SeededRandom(seed);
+    if (seed != null) {
+      seedRef.current = seed;
+      rndRef.current = new SeededRandom(seed);
+    }
   }, [seed]);
+
+  if (!seed) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading level...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

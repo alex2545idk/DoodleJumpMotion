@@ -9,7 +9,8 @@ const MIN_DISTANCE = 50;
 
 export function useSeededPlatforms(seed?: number | null) {
   return useMemo(() => {
-    const rnd = seed == null ? null : new SeededRandom(seed);
+    if (seed == null) return [];
+    const rnd = new SeededRandom(seed);
 
     const positions: { x: number; y: number }[] = [];
 
