@@ -45,6 +45,17 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	r.Use(func(c *gin.Context) {
+    fmt.Printf("🔥 REQUEST: %s %s | Auth: %s\n", 
+        c.Request.Method, 
+        c.Request.URL.Path,
+        c.GetHeader("Authorization"))
+		c.Next()
+		fmt.Printf("✅ RESPONSE: %d\n", c.Writer.Status())
+	})
+	
+	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
+
 	http.RegisterRoutes(db, r)
 
 	adminToken, _ := services.GenerateAdminJWT(7, "admin1")

@@ -8,6 +8,7 @@ import (
 	"arenas-service/internal/repository"
 	"arenas-service/internal/services"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -35,7 +36,11 @@ func main() {
 	// log.Println("Arena created:", arena)
 
 	repo := repository.NewArenaRepository(db)
-	userService := services.NewUserServiceHTTP("http://localhost:8080")
+	userServiceURL := os.Getenv("USER_SERVICE_URL")
+	if userServiceURL == "" {
+		userServiceURL = "http://localhost:8080" // fallback для локального запуска
+	}
+	userService := services.NewUserServiceHTTP(userServiceURL)
 	service := services.NewArenaService(repo, userService)
 	arenaHandler := handlers.NewArenaHandler(service)
 

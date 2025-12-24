@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"log"
+	"matchmaking-service/internal/clients"
 	"matchmaking-service/internal/dto"
 	"matchmaking-service/internal/models"
 	"matchmaking-service/internal/services"
@@ -18,10 +19,11 @@ import (
 
 type EnqueueHandler struct {
 	qs *services.QueueService
+	userCli  *clients.UserClient
 }
 
-func NewEnqueueHandler(qs *services.QueueService) *EnqueueHandler {
-	return &EnqueueHandler{qs: qs}
+func NewEnqueueHandler(qs *services.QueueService, userCli *clients.UserClient) *EnqueueHandler {
+	return &EnqueueHandler{qs: qs, userCli: userCli}
 }
 
 func (h *EnqueueHandler) Handle(c *gin.Context) {
@@ -48,10 +50,18 @@ func (h *EnqueueHandler) Handle(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "bad token"})
 		return
 	}
+	realTrophies, err := h.userCli.GetUserTrophies(c.Request.Context(), userID)
+	if err != nil {
+		log.Printf("[ERROR] failed to get trophies for user %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user data"})
+		return
+	}
+	log.Printf("[DEBUG] Real trophies for user %d: %d", userID, realTrophies)
+
 	item := models.QueueItem{
 		RequestID: uuid.New().String(),
 		PlayerID:  userID,
-		Trophies:  req.Trophies,
+		Trophies:  realTrophies,
 		Arena:     req.Arena,
 		CreatedAt: time.Now().Unix(),
 	}

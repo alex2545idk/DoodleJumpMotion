@@ -43,6 +43,7 @@ func main() {
 
 	routes.RegisterRoutes(r, hub)
 
+	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/ws", middleware.AuthMiddleware(hub, sessionService), ws.WSHandler(hub, sessionService, matchHandler))
 
 	log.Println("🚀 Session Service running on port " + cfg.AppPort)

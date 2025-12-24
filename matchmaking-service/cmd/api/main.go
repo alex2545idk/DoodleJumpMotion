@@ -20,10 +20,12 @@ func main() {
 	rdb := clients.NewRedis(cfg)
 	nc, _ := clients.NewNats(cfg.NatsURL)
 
+	userCli := clients.NewUserClient("http://host.docker.internal:8080", cfg.JWTAdmin)
+
 	qr := repositories.NewQueueRepo(rdb)
 	qs := services.NewQueueService(qr)
 	nP := services.NewNatsPublisher(nc)
-	eh := handlers.NewEnqueueHandler(qs)
+	eh := handlers.NewEnqueueHandler(qs, userCli)
 	sh := handlers.NewStatusHandler(qs)
 	sc := services.NewScannerService(qs, nP, clients.NewSessionClient(cfg))
 

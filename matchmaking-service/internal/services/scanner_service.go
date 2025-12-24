@@ -38,6 +38,10 @@ func (s *ScannerService) Start(ctx context.Context) {
 					if err == nil && len(pair) == 2 {
 						p1ID := utils.ParsePlayerID(pair[0])
 						p2ID := utils.ParsePlayerID(pair[1])
+						if p1ID == p2ID {
+							log.Printf("[SKIP] same player ID: %d", p1ID)
+							continue
+						}
 						ev := dto.MatchFoundEvent{
 							Player1ID: strconv.FormatUint(uint64(p1ID), 10),
 							Player2ID: strconv.FormatUint(uint64(p2ID), 10),
