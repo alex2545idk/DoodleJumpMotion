@@ -1,6 +1,6 @@
 // конфиг
-const SESSION_SERVICE_HTTP = "http://localhost:8083";
-const SESSION_SERVICE_WS = "ws://localhost:8083/ws";
+const SESSION_SERVICE_HTTP = window.ENV.SESSION_SERVICE_URL;
+const SESSION_SERVICE_WS = window.ENV.SESSION_SERVICE_WS_URL;
 
 // ------- helpers -------
 const getJwt = () => localStorage.getItem("jwt");
@@ -86,7 +86,7 @@ async function connectToReadySession() {
 
   // 3. прокси postMessage от игры
   window.addEventListener("message", (e) => {
-    if (e.origin !== "http://localhost:8079") return;
+    if (e.origin !== window.ENC.GAME_DEV_URL) return;
     const { type, value } = e.data;
     if (type === "score") sendScore(value);
     if (type === "death") sendDeath(value);

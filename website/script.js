@@ -1,6 +1,6 @@
 // script.js
 
-const API_URL = "http://localhost:8080"; // твой user service
+const API_URL = window.ENV.USER_SERVICE_URL; // твой user service
 
 async function login(email, password) {
   try {

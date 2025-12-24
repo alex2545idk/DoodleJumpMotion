@@ -5,12 +5,14 @@ export const GAME_SEED =
 export const USER_ID =
   (typeof window !== "undefined" ? (window as any).USER_ID : 0) ?? 0;
 
+const PARENT_ORIGIN =
+  process.env.EXPO_PUBLIC_PARENT_ORIGIN || "http://localhost:3000";
+
 // когда счёт изменился
 export function publishScore(score: number) {
-  (window.parent as any).postMessage({ type: "score", value: score }, "*");
+  window.parent.postMessage({ type: "score", value: score }, PARENT_ORIGIN);
 }
 
-// когда умерли
 export function publishDeath(userId: number) {
-  (window.parent as any).postMessage({ type: "death", value: userId }, "*");
+  window.parent.postMessage({ type: "death", value: userId }, PARENT_ORIGIN);
 }

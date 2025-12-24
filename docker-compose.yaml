@@ -25,6 +25,7 @@ services:
       - "5436:5432"
     volumes:
       - pg_user_data:/var/lib/postgresql/data
+      - ./initdb.d/01-user-service.sql:/docker-entrypoint-initdb.d/01-user-service.sql
     networks:
       - doodle_net
     healthcheck:
@@ -50,6 +51,7 @@ services:
       - "5437:5432" # хост:5433 → контейнер:5432
     volumes:
       - pg_arenas_data:/var/lib/postgresql/data
+      - ./initdb.d/02-arenas-service.sql:/docker-entrypoint-initdb.d/02-arenas-service.sql
     networks:
       - doodle_net
 
@@ -66,6 +68,7 @@ services:
       - "5438:5432"
     volumes:
       - pg_session_data:/var/lib/postgresql/data
+      - ./initdb.d/03-session-service.sql:/docker-entrypoint-initdb.d/03-session-service.sql
     networks:
       - doodle_net
     healthcheck:
@@ -292,3 +295,54 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  # --------------- GAME (dev, hot-reload) ---------------
+  game-dev:
+    build:
+      context: ./game-service
+      dockerfile: Dockerfile.dev
+    container_name: doodle_game_dev
+    ports:
+      - "8079:8079"
+      - "19000:19000"
+    environment:
+      EXPO_DEVTOOLS_LISTEN_ADDRESS: 0.0.0.0
+      EXPO_PUBLIC_PARENT_ORIGIN: ${PARENT_ORIGIN:-http://localhost:3000}
+      EXPO_PUBLIC_USER_SERVICE: http://user-service:8080
+      EXPO_PUBLIC_SESSION_SERVICE: http://session-service:8083
+      EXPO_PUBLIC_ARENAS_SERVICE: http://arenas-service:8081
+      EXPO_PUBLIC_MATCHMAKER_SERVICE: http://matchmaker:8084
+    volumes:
+      - ./game-service:/app
+      - /app/node_modules
+    networks:
+      - doodle_net
+
+  # --------------- GAME (prod, статика) ---------------
+  # раскомментируй когда понадобится продакшен
+  # game-prod:
+  #   build:
+  #     context: ./game-service
+  #     dockerfile: Dockerfile.prod
+  #   container_name: doodle_game_prod
+  #   ports:
+  #     - "8090:80"
+  #   networks:
+  #     - doodle_net
+  # --------------- FRONTEND (статика) ---------------
+  frontend:
+    build:
+      context: ./website # папка c index.html и пр.
+      dockerfile: Dockerfile
+    container_name: doodle_frontend
+    ports:
+      - "3000:80"
+    networks:
+      - doodle_net
+    environment:
+      # передаём URL-ы сервисов внутрь контейнера
+      USER_SERVICE_URL: http://user-service:8080
+      SESSION_SERVICE_URL: http://session-service:8083
+      MATCHMAKER_SERVICE_URL: http://matchmaker:8084
+      GAME_DEV_URL: http://game-dev:8079 # для iframe
+      SESSION_SERVICE_WS_URL: ws://session-service:8083/ws

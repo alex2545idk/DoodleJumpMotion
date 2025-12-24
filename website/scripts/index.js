@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8080";
+const API_URL = window.ENV.USER_SERVICE_URL;
 
 function logout() {
   localStorage.removeItem("jwt");

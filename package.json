@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "@tsconfig/react-native": "^3.0.8",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.0.3"
+  }
+}
