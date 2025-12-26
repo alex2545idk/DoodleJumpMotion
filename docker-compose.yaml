@@ -345,3 +345,18 @@ services:
       MATCHMAKER_SERVICE_URL: http://localhost:8088
       GAME_DEV_URL: http://localhost:8079
       SESSION_SERVICE_WS_URL: ws://localhost:8087/ws
+
+  #--------------------LeadeBoard--------------------
+  leaderboard-service:
+    build: ./leaderboard-service
+    container_name: doodle_leaderboard_service
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_ADDR: redis:6379
+    ports:
+      - "8089:8080"
+    networks:
+      - doodle_net
