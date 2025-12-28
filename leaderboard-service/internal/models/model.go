@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type LeaderboardUserModel struct {
 	ID        uint      `gorm:"primaryKey"`
@@ -8,4 +12,5 @@ type LeaderboardUserModel struct {
 	Username  string    `gorm:"size:100;not null"`
 	CupCount  uint      `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt
 }
