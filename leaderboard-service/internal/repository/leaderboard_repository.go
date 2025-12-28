@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"doodlejump-backend/leaderboard-service/database"
+	"doodlejump-backend/leaderboard-service/internal/database"
 	"doodlejump-backend/leaderboard-service/internal/domain"
 	"doodlejump-backend/leaderboard-service/internal/models"
 )

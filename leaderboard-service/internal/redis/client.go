@@ -2,20 +2,17 @@ package redis
 
 import (
 	"context"
+	"doodlejump-backend/leaderboard-service/internal/config"
 	"log"
-	"os"
 
 	"github.com/redis/go-redis/v9"
 )
 
-func NewClient() *redis.Client {
-	addr := os.Getenv("REDIS_ADDR")
-	if addr == "" {
-		addr = "localhost:6379"
-	}
-
+func NewClient(cfg *config.Config) *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
-		Addr: addr,
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
 	})
 
 	ctx := context.Background()

@@ -1,29 +1,56 @@
 package main
 
 import (
-	"context"
+	"doodlejump-backend/leaderboard-service/internal/config"
+	"doodlejump-backend/leaderboard-service/internal/database"
+	"doodlejump-backend/leaderboard-service/internal/handlers"
+	"doodlejump-backend/leaderboard-service/internal/models"
 	"doodlejump-backend/leaderboard-service/internal/redis"
 	"doodlejump-backend/leaderboard-service/internal/repository"
-	"log"
-	"net/http"
+	"doodlejump-backend/leaderboard-service/internal/services"
+	"fmt"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	ctx := context.Background()  // <--- обязательно
-
-	rdb := redis.NewClient()
-	repo := repository.NewRedisLeaderboardRepository(rdb)
-
-	if err := repo.SetScore(ctx, 1, 120); err != nil {
-		log.Fatalf("SetScore failed: %v", err)
-	}
-
-	rank, err := repo.GetRank(ctx, 1)
+	cfg := config.LoadConfig()
+	godotenv.Load()
+	
+	db, err := database.Connect(cfg)
 	if err != nil {
-		log.Fatalf("GetRank failed: %v", err)
+		panic(fmt.Sprintf("failed to connect database: %v", err))
 	}
+	
+	err = db.AutoMigrate(&models.LeaderboardUserModel{})
+	if err != nil {
+		panic(fmt.Sprintf("failed to migrate users table: %v", err))
+	}
+	fmt.Println("Users table migrated successfully!")
 
-	log.Println("Rank of user 1:", rank)
+	rdb := redis.NewClient(cfg)
 
-	http.ListenAndServe(":8080", nil)
+	pgRepo := repository.NewLeaderboardRepository()
+	redisRepo := repository.NewRedisLeaderboardRepository(rdb)
+
+	service := services.NewLeaderboardService(pgRepo, redisRepo)
+	handler := handlers.NewLeaderboardHandler(service)
+
+	r := gin.Default()
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000", //front
+			"http://localhost:8085", //user service
+		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
+	r.GET("/leaderboard/top", handler.GetTopHandler)
+	r.POST("/leaderboard/update", handler.UpdateAndSaveCup)
+	r.Run(":" + cfg.AppPort)
 }
