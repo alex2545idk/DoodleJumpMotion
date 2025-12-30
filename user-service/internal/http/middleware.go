@@ -109,7 +109,7 @@ func InternalAuthMiddleware() gin.HandlerFunc {
             c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
             c.Abort()
             return
-        } 	
+        }
 		c.Next()
 	}
 }

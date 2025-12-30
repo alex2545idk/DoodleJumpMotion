@@ -68,6 +68,9 @@ func (s *UserService) UpdateUser(u *domain.User) error {
     return s.repo.UpdateUser(u)
 }
 
+func (s *UserService) GetAllUsersInfo() ([]repository.UserShort, error) {
+	return s.repo.GetAllUsersInfo()
+}
 
 //genetate custom jwt with role admin without exp
 

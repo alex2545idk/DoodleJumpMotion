@@ -23,5 +23,11 @@ func RegisterRoutes(db *gorm.DB, r *gin.Engine) {
     {
         internal.PUT("/:id/cups", authHandler.UpdateCups)
     }
+
+    info := r.Group("/info")
+    info.Use(InternalAuthMiddleware())
+    {
+        info.GET("/users/all", authHandler.GetAllUsersInfo)
+    }
 }
 

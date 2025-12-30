@@ -10,6 +10,12 @@ type UserRepository struct {
 	db *gorm.DB
 }
 
+type UserShort struct {
+	ID       int64  `json:"user_id"`
+	Username string `json:"username"`
+	CupCount int    `json:"cup_count"`
+}
+
 func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
@@ -53,4 +59,10 @@ func (r *UserRepository) GetByID(id int64) (*domain.User, error) {
 
 func (r *UserRepository) UpdateUser(u *domain.User) error {
     return r.db.Save(u).Error
+}
+
+func (r *UserRepository) GetAllUsersInfo() ([]UserShort, error) {
+	var users []UserShort
+	err := r.db.Model(&domain.User{}).Select("id", "username", "cup_count").Scan(&users).Error
+	return users, err
 }

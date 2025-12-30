@@ -41,10 +41,12 @@ func (h *LeaderboardHandler) UpdateAndSaveCup(c *gin.Context) {
 	userIDStr := c.Query("userId")
 	cupsStr := c.Query("cups")
 	if userIDStr == "" {
-		c.JSON(http.StatusBadRequest, "error: request without userId")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing userId"})
+		return
 	}
 	if cupsStr == "" {
-		c.JSON(http.StatusBadRequest, "error: request without cups")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing cups"})
+		return
 	}
 
 	userId, err := strconv.ParseUint(userIDStr, 10, 64)
@@ -58,11 +60,10 @@ func (h *LeaderboardHandler) UpdateAndSaveCup(c *gin.Context) {
 		return
 	}
 
-	entries := h.service.UpdatePlayerCups(c.Request.Context(), uint(userId), uint(cups))
-	if err != nil {
+	if err := h.service.UpdatePlayerCups(c.Request.Context(), uint(userId), uint(cups)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return 
+		return
 	}
 
-	c.JSON(http.StatusOK, entries)
+	c.JSON(http.StatusOK, gin.H{"status": "updated"})
 }

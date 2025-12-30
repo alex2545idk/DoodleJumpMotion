@@ -2,8 +2,12 @@ package http
 
 import (
 	"doodlejump-backend/user-service/internal/services"
+	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -173,4 +177,35 @@ func (h *AuthHandler) UpdateCups(c *gin.Context) {
         "id":        user.ID,
         "new_cups":  user.CupCount,
     })
+
+    go func(userID int64, newCups int) {
+        url := fmt.Sprintf("http://leaderboard-service:8089/leaderboard/update?userId=%d&cups=%d", userID, newCups)
+        req, _ := http.NewRequest("POST", url, nil)
+        req.Header.Set("INTERNAL_API_TOKEN", os.Getenv("INTERNAL_API_TOKEN"))
+
+        client := &http.Client{Timeout: 5 * time.Second}
+        resp, err := client.Do(req)
+        if err != nil {
+            log.Printf("❌ failed to notify leaderboard: %v", err)
+            return
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK {
+            log.Printf("❌ leaderboard returned %d", resp.StatusCode)
+        } else {
+            log.Printf("✅ leaderboard notified for user %d", userID)
+        }
+    }(user.ID, user.CupCount)
+}
+
+func (h *AuthHandler) GetAllUsersInfo(c *gin.Context) {
+    users, err := h.userService.GetAllUsersInfo()
+
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"users": users})
 }

@@ -356,6 +356,7 @@ services:
         condition: service_healthy
     environment:
       REDIS_ADDR: redis:6379
+      INTERNAL_API_TOKEN: super_secret_token_123
     ports:
       - "8089:8080"
     networks:
