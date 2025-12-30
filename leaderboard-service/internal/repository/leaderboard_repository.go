@@ -21,10 +21,16 @@ func (r *LeaderboardRepository) Create(leaderUser *models.LeaderboardUserModel) 
 	return database.DB.Create(leaderUser).Error
 }
 
-func (r *LeaderboardRepository) UpdateAndSaveCups(userID, cups uint,) error{
-	var user models.LeaderboardUserModel
-
-	return database.DB.Where(models.LeaderboardUserModel{UserID: userID}).Assign(models.LeaderboardUserModel{CupCount: cups}).FirstOrCreate(&user).Error
+func (r *LeaderboardRepository) UpdateAndSaveCups(userID, cups uint, username string) error{
+    return database.DB.Where(
+        models.LeaderboardUserModel{UserID: userID},
+    ).Assign(
+        models.LeaderboardUserModel{
+            UserID:   userID,
+            Username: username,
+            CupCount: cups,
+        },
+    ).FirstOrCreate(&models.LeaderboardUserModel{}).Error
 }
 
 func (r *LeaderboardRepository) Delete(userID uint) error {
@@ -96,4 +102,13 @@ func (r *LeaderboardRepository) GetGlobalTop(limit int) ([]models.LeaderboardUse
     var users []models.LeaderboardUserModel
     err := database.DB.Order("cup_count DESC").Limit(limit).Find(&users).Error
     return users, err
+}
+
+func (r *LeaderboardRepository) GetUserNameById(userId uint) (string, error) {
+    var user models.LeaderboardUserModel
+    err := database.DB.Where("user_id = ?", userId).First(&user).Error
+    if err != nil {
+        return "", err
+    }
+    return user.Username, nil
 }

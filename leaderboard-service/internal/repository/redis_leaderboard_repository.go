@@ -11,13 +11,14 @@ import (
 
 type RedisLeaderboardRepository struct {
 	rdb *redis.Client
+	pgRepo *LeaderboardRepository
 }
 
-func NewRedisLeaderboardRepository (rdb *redis.Client) *RedisLeaderboardRepository {
+func NewRedisLeaderboardRepository (rdb *redis.Client, pgRepo *LeaderboardRepository) *RedisLeaderboardRepository {
 	if rdb == nil {
 		log.Fatal("Redis client is nil!")
 	}
-	return &RedisLeaderboardRepository{rdb: rdb}
+	return &RedisLeaderboardRepository{rdb: rdb, pgRepo: pgRepo}
 }
 
 func (r *RedisLeaderboardRepository) SetScore(ctx context.Context, userID, cups int64) error {
@@ -40,7 +41,6 @@ func (r *RedisLeaderboardRepository) GetRank(ctx context.Context, userID int64) 
 
 func (r *RedisLeaderboardRepository) GetTop(ctx context.Context, limit int64) ([]domain.LeaderboardEntry, error) {
 	zs, err := r.rdb.ZRevRangeWithScores(ctx, "leaderboard:global", 0, limit-1).Result()
-	
 	if err == redis.Nil {
 		return []domain.LeaderboardEntry{}, nil
 	}
@@ -49,12 +49,11 @@ func (r *RedisLeaderboardRepository) GetTop(ctx context.Context, limit int64) ([
 	}
 
 	entries := make([]domain.LeaderboardEntry, 0, len(zs))
-	
-	for i := range zs {
-		z := zs[i]
+
+	for _, z := range zs {
 		userIDStr, ok := z.Member.(string)
 		if !ok {
-			continue // или ошибка
+			continue
 		}
 
 		userID, err := strconv.ParseUint(userIDStr, 10, 64)
@@ -62,12 +61,16 @@ func (r *RedisLeaderboardRepository) GetTop(ctx context.Context, limit int64) ([
 			continue
 		}
 
+		// 🎯 Достаём username из PostgreSQL
+		username, _ := r.pgRepo.GetUserNameById(uint(userID))
+
 		entries = append(entries, domain.LeaderboardEntry{
-			User_id: uint(userID),
-			Cup_count:  uint(z.Score),
+			User_id:   uint(userID),
+			Username:  username,
+			Cup_count: uint(z.Score),
 		})
 	}
-	
+
 	return entries, nil
 }
 

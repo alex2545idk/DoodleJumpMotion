@@ -2,8 +2,14 @@ package services
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
 
 	"doodlejump-backend/leaderboard-service/internal/domain"
+	"doodlejump-backend/leaderboard-service/internal/dto"
 	"doodlejump-backend/leaderboard-service/internal/repository"
 )
 
@@ -19,8 +25,8 @@ func NewLeaderboardService(pg *repository.LeaderboardRepository, rd *repository.
 	}
 }
 
-func (s *LeaderboardService) UpdatePlayerCups(ctx context.Context, userId uint, cups uint) error {
-	if err := s.pgRepo.UpdateAndSaveCups(userId, cups); err != nil {
+func (s *LeaderboardService) UpdatePlayerCups(ctx context.Context, userId uint, cups uint, username string) error {
+	if err := s.pgRepo.UpdateAndSaveCups(userId, cups, username); err != nil {
         return err
     }
 
@@ -44,3 +50,46 @@ func (s *LeaderboardService) GetNTop(ctx context.Context, limit int64) ([]domain
 	return list, nil
 }
 
+
+func SyncUsersFromUserService(service *LeaderboardService) error{
+	req, err := http.NewRequest(
+		http.MethodGet,
+		"http://user-service:8080/info/users/all",
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("INTERNAL_API_TOKEN", os.Getenv("INTERNAL_API_TOKEN"))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("user service returned status %d", resp.StatusCode)
+	}
+
+	var body struct {
+	Users []dto.UserDTO `json:"users"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return err
+	}
+	users := body.Users
+	for _, u := range users {
+		err := service.UpdatePlayerCups(
+			context.Background(),
+			u.ID,
+			u.Cups,
+			u.Username,
+		)
+		if err != nil {
+			log.Printf("Failed to sync user %d: %v", u.ID, err)
+		}
+	}
+
+	return nil
+}

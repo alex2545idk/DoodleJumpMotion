@@ -40,6 +40,7 @@ func (h *LeaderboardHandler) GetTopHandler(c *gin.Context) {
 func (h *LeaderboardHandler) UpdateAndSaveCup(c *gin.Context) {
 	userIDStr := c.Query("userId")
 	cupsStr := c.Query("cups")
+	username := c.Query("username")
 	if userIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing userId"})
 		return
@@ -60,7 +61,7 @@ func (h *LeaderboardHandler) UpdateAndSaveCup(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdatePlayerCups(c.Request.Context(), uint(userId), uint(cups)); err != nil {
+	if err := h.service.UpdatePlayerCups(c.Request.Context(), uint(userId), uint(cups), username); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

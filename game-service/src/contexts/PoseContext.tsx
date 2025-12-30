@@ -5,6 +5,8 @@ interface PoseContextType {
   setTorsoCoords: (coords: { x: number; y: number }) => void;
   isJumping: boolean;
   setIsJumping: (jumping: boolean) => void;
+  isCameraEnabled: boolean;
+  setIsCameraEnabled: (enabled: boolean) => void;
 }
 
 const PoseContext = createContext<PoseContextType | undefined>(undefined);
@@ -14,10 +16,18 @@ export const PoseProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [torsoCoords, setTorsoCoords] = useState({ x: 0, y: 0 });
   const [isJumping, setIsJumping] = useState(false);
+  const [isCameraEnabled, setIsCameraEnabled] = useState(true);
 
   return (
     <PoseContext.Provider
-      value={{ torsoCoords, setTorsoCoords, isJumping, setIsJumping }}
+      value={{
+        torsoCoords,
+        setTorsoCoords,
+        isJumping,
+        setIsJumping,
+        isCameraEnabled,
+        setIsCameraEnabled,
+      }}
     >
       {children}
     </PoseContext.Provider>

@@ -75,7 +75,14 @@ export const GameScreen = ({ seed }: { seed: number }) => {
   const cameraOffset = useSharedValue(0);
   const isOnPlatform = useRef(true); // Стартуем НА платформе
 
-  const { torsoCoords, isJumping, setTorsoCoords, setIsJumping } = usePose();
+  const {
+    torsoCoords,
+    isJumping,
+    setTorsoCoords,
+    setIsJumping,
+    isCameraEnabled,
+    setIsCameraEnabled,
+  } = usePose();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
@@ -107,7 +114,16 @@ export const GameScreen = ({ seed }: { seed: number }) => {
       }
     };
 
-    initializeCamera();
+    if (isCameraEnabled) {
+      initializeCamera();
+    } else {
+      if (videoRef.current?.srcObject) {
+        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+        tracks.forEach((track) => track.stop());
+      }
+      stopDetection();
+      setCameraActive(false);
+    }
 
     return () => {
       if (videoRef.current?.srcObject) {
@@ -117,7 +133,7 @@ export const GameScreen = ({ seed }: { seed: number }) => {
       stopDetection();
       setCameraActive(false);
     };
-  }, []);
+  }, [isCameraEnabled]);
 
   useEffect(() => {
     if (torsoCoords.x === 0 && torsoCoords.y === 0) {
@@ -162,6 +178,20 @@ export const GameScreen = ({ seed }: { seed: number }) => {
       }
     }
   }, [isJumping, torsoCoords.y, torsoCoords.x]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === "c") {
+        setIsCameraEnabled(!isCameraEnabled);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isCameraEnabled]);
 
   // const platformPositions = useMemo(() => {
   //   const positions: { x: number; y: number }[] = [];

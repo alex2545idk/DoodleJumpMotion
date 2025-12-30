@@ -10,6 +10,7 @@ volumes:
   pg_arenas_data:
   pg_session_data:
   pg_matchmaker_data:
+  pg_leaderboard_data:
 
 services:
   # --------------- user-db ---------------
@@ -101,6 +102,30 @@ services:
         [
           "CMD-SHELL",
           "pg_isready -U daniil -d matchmaker_service_db_doodleJumpMotion",
+        ]
+      interval: 1m
+      timeout: 5s
+      retries: 5
+  # --------------- leaderboard-db ---------------
+  postgres-leaderboard:
+    image: postgres:16-alpine
+    container_name: doodle_postgres_leaderboard
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: daniil
+      POSTGRES_PASSWORD: Admin
+      POSTGRES_DB: leaderboard_service_db_doodleJumpMotion
+    ports:
+      - "5440:5432"
+    volumes:
+      - pg_leaderboard_data:/var/lib/postgresql/data
+    networks:
+      - doodle_net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U daniil -d leaderboard_service_db_doodleJumpMotion",
         ]
       interval: 1m
       timeout: 5s
@@ -354,9 +379,18 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres-leaderboard:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
     environment:
       REDIS_ADDR: redis:6379
       INTERNAL_API_TOKEN: super_secret_token_123
+      DB_HOST: postgres-leaderboard
+      DB_PORT: 5432
+      DB_USER: daniil
+      DB_PASSWORD: Admin
+      DB_NAME: leaderboard_service_db_doodleJumpMotion
     ports:
       - "8089:8080"
     networks:
