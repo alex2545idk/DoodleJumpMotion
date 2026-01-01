@@ -36,7 +36,7 @@ func (c *UserClient) GetUserTrophies(ctx context.Context, userID uint) (int, err
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, err
+		return 0, fmt.Errorf("user-service error: status %d", resp.StatusCode)
 	}
 
 	var user struct {

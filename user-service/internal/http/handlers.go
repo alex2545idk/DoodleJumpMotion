@@ -179,7 +179,7 @@ func (h *AuthHandler) UpdateCups(c *gin.Context) {
     })
 
     go func(userID int64, newCups int) {
-        url := fmt.Sprintf("http://leaderboard-service:8089/leaderboard/update?userId=%d&cups=%d", userID, newCups)
+        url := fmt.Sprintf("http://leaderboard-service:8080/leaderboard/update?userId=%d&cups=%d", userID, newCups)
         req, _ := http.NewRequest("POST", url, nil)
         req.Header.Set("INTERNAL_API_TOKEN", os.Getenv("INTERNAL_API_TOKEN"))
 
